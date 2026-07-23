@@ -2,6 +2,15 @@ using System.Collections.Generic;
 
 namespace BehaviorTree
 {
+    /// <summary>
+    /// Like SelectorNode but shuffles children order randomly on each activation.
+    /// Giống SelectorNode nhưng xáo trộn thứ tự con ngẫu nhiên mỗi khi kích hoạt.
+    ///
+    /// Useful for randomized behavior selection (e.g., choosing between
+    /// different attack types with equal probability).
+    /// Hữu ích cho việc chọn hành vi ngẫu nhiên (ví dụ: chọn giữa
+    /// các loại tấn công khác nhau với xác suất bằng nhau).
+    /// </summary>
     public class RandomSelectorNode : SelectorNode
     {
         private readonly List<int> _shuffledOrder = new List<int>();
@@ -16,6 +25,8 @@ namespace BehaviorTree
             }
         }
 
+        // Fisher-Yates shuffle algorithm
+        // Thuật toán xáo trộn Fisher-Yates
         private void ShuffleChildren()
         {
             _shuffledOrder.Clear();

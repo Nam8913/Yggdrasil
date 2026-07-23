@@ -1,5 +1,15 @@
 namespace BehaviorTree
 {
+    /// <summary>
+    /// Inverts the child's result: Success becomes Failure, Failure becomes Success.
+    /// Đảo ngược kết quả của con: Success thành Failure, Failure thành Success.
+    ///
+    /// Running is passed through unchanged.
+    /// Running được giữ nguyên không đổi.
+    ///
+    /// Usage: "do something UNLESS condition is true"
+    /// Sử dụng: "làm gì đó TRỪ KHI điều kiện đúng"
+    /// </summary>
     public class InverterNode : DecoratorNode
     {
         protected override BHState OnUpdate()

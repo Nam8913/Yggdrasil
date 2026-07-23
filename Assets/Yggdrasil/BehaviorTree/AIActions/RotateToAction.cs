@@ -2,15 +2,29 @@ using UnityEngine;
 
 namespace BehaviorTree
 {
+    /// <summary>
+    /// Rotates the NPC to face a target position (2D rotation around Z-axis).
+    /// Quay NPC để nhìn về phía vị trí mục tiêu (quay 2D quanh trục Z).
+    ///
+    /// Reads target from LookTarget, falls back to MoveTarget if not set.
+    /// Đọc mục tiêu từ LookTarget, nếu không có thì dùng MoveTarget.
+    /// </summary>
     public class RotateToAction : ActionNode
     {
+        // Rotation speed in degrees per second
+        // Tốc độ quay (độ/giây)
         public float TurnSpeed { get; set; } = 360f;
+
+        // Angle threshold to consider "facing" the target
+        // Ngưỡng góc để coi là "đang nhìn" mục tiêu
         public float AngleThreshold { get; set; } = 5f;
 
         private Vector3 _targetPosition;
 
         protected override void OnEnter()
         {
+            // Prefer LookTarget, fall back to MoveTarget
+            // Ưu tiên LookTarget, nếu không có thì dùng MoveTarget
             if (Blackboard.Has(BBKeys.LookTarget))
                 _targetPosition = Blackboard.Get(BBKeys.LookTarget);
             else if (Blackboard.Has(BBKeys.MoveTarget))

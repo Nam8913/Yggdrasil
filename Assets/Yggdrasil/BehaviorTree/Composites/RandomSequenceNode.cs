@@ -2,6 +2,13 @@ using System.Collections.Generic;
 
 namespace BehaviorTree
 {
+    /// <summary>
+    /// Like SequenceNode but shuffles children order randomly on each activation.
+    /// Giống SequenceNode nhưng xáo trộn thứ tự con ngẫu nhiên mỗi khi kích hoạt.
+    ///
+    /// Useful for randomized sequential tasks (e.g., random attack combo order).
+    /// Hữu ích cho các tác vụ tuần tự ngẫu nhiên (ví dụ: thứ tự combo tấn công ngẫu nhiên).
+    /// </summary>
     public class RandomSequenceNode : SequenceNode
     {
         private readonly List<int> _shuffledOrder = new List<int>();
@@ -16,6 +23,8 @@ namespace BehaviorTree
             }
         }
 
+        // Fisher-Yates shuffle algorithm
+        // Thuật toán xáo trộn Fisher-Yates
         private void ShuffleChildren()
         {
             _shuffledOrder.Clear();

@@ -2,8 +2,17 @@ using UnityEngine;
 
 namespace BehaviorTree
 {
+    /// <summary>
+    /// Sets the NPC's Rigidbody2D velocity directly.
+    /// Đặt velocity Rigidbody2D của NPC trực tiếp.
+    ///
+    /// Useful for knockback, dashes, or custom physics movements.
+    /// Hữu ích cho knockback, lunge, hoặc các chuyển động vật lý tùy chỉnh.
+    /// </summary>
     public class SetVelocityAction : ActionNode
     {
+        // Velocity vector to apply (units per second)
+        // Vectơ velocity cần áp dụng (đơn vị/giây)
         public Vector2 Velocity { get; set; }
 
         protected override BHState OnUpdate()

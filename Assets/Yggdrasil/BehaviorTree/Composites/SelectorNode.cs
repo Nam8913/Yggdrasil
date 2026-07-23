@@ -1,5 +1,17 @@
 namespace BehaviorTree
 {
+    /// <summary>
+    /// Tries children in order. Returns Success if ANY child succeeds.
+    /// Thử các con theo thứ tự. Trả về Success nếu BẤT KỲ con nào thành công.
+    ///
+    /// - If a child returns Success → selector succeeds immediately, resets index.
+    /// - If a child returns Running → selector pauses, returns Running.
+    /// Nếu một con trả về Success → selector thành công ngay, reset chỉ số.
+    /// Nếu một con trả về Running → selector tạm dừng, trả về Running.
+    ///
+    /// Analogous to OR logic gate / logical disjunction.
+    /// Tương tự cổng logic OR / phép tuyển.
+    /// </summary>
     public class SelectorNode : CompositeNode
     {
         protected override BHState OnUpdate()
@@ -24,7 +36,6 @@ namespace BehaviorTree
             return BHState.Failure;
         }
 
-        // Phase 1: Evaluate logic (thread-safe)
         protected override BHState OnEvaluate()
         {
             while (CurrentChildIndex < Children.Count)
@@ -47,7 +58,6 @@ namespace BehaviorTree
             return BHState.Failure;
         }
 
-        // Phase 2: Execute Unity API (main thread)
         protected override BHState OnExecute()
         {
             if (CurrentChildIndex < Children.Count)

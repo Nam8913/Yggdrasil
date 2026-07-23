@@ -4,19 +4,45 @@ using BehaviorTree.Debug;
 
 namespace BehaviorTree
 {
+    /// <summary>
+    /// Abstract base class for all behavior tree nodes.
+    /// Lớp cơ sở trừu tượng cho tất cả các node trong cây hành vi.
+    ///
+    /// Implements two-phase evaluation:
+    /// - Phase 1 (Evaluate): Pure logic, can run on worker thread in future.
+    /// - Phase 2 (Execute): Unity API calls, main thread only.
+    /// Triển khai đánh giá hai giai đoạn:
+    /// - Giai đoạn 1 (Evaluate): Logic thuần túy, trong tương lai có thể chạy trên worker thread.
+    /// - Giai đoạn 2 (Execute): Gọi Unity API, chỉ chạy trên main thread.
+    /// </summary>
     public abstract class NodeBT : IBehaviorNode
     {
+        // Current state of this node (Running, Success, Failure)
+        // Trạng thái hiện tại của node (Running, Success, Failure)
         public BHState CurrentState { get; private set; } = BHState.Failure;
+
+        // Whether this node is currently executing (between OnEnter and OnExit)
+        // Node có đang trong quá trình thực thi hay không (giữa OnEnter và OnExit)
         public bool IsRunning { get; private set; }
+
+        // Parent node in the tree hierarchy
+        // Node cha trong cấu trúc cây
         public NodeBT Parent { get; internal set; }
 
-        // Profiling counters
+        // Profiling: total number of times this node has been ticked
+        // Profiling: tổng số lần node này được tick
         public long TotalTicks { get; private set; }
+
+        // Profiling: duration of the last tick in milliseconds
+        // Profiling: thời gian thực thi của lần tick cuối cùng (ms)
         public float LastTickDurationMs { get; private set; }
 
-        // Two-phase state
+        // Cached result from Evaluate(), used by Execute() phase
+        // Kết quả được cache từ Evaluate(), dùng bởi giai đoạn Execute()
         protected BHState EvaluatedState { get; private set; } = BHState.Failure;
 
+        // Shared blackboard for data communication between nodes
+        // Blackboard dùng chung để trao đổi dữ liệu giữa các node
         protected Blackboard Blackboard { get; private set; }
 
         public void Initialize(Blackboard blackboard)

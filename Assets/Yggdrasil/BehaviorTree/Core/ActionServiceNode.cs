@@ -2,6 +2,16 @@ using System;
 
 namespace BehaviorTree
 {
+    /// <summary>
+    /// Concrete ServiceNode that wraps a System.Action lambda.
+    /// ServiceNode cụ thể bọc một lambda System.Action.
+    ///
+    /// Usage in builder:
+    /// Sử dụng trong builder:
+    /// <code>
+    /// .Service(0.5f, () => blackboard.Set(BBKeys.CanSeeEnemy, CheckVision()))
+    /// </code>
+    /// </summary>
     public class ActionServiceNode : ServiceNode
     {
         private readonly Action _serviceAction;

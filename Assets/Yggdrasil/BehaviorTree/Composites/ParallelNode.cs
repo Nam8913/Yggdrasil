@@ -2,16 +2,41 @@ using System.Collections.Generic;
 
 namespace BehaviorTree
 {
+    /// <summary>
+    /// Execution policy for ParallelNode.
+    /// Chính sách thực thi cho ParallelNode.
+    /// </summary>
     public enum ParallelPolicy
     {
+        // Succeed only when ALL children succeed (AND logic)
+        // Chỉ thành công khi TẤT CẢ con thành công (logic AND)
         RequireAll,
+
+        // Succeed when ANY child succeeds (OR logic)
+        // Thành công khi BẤT KỲ con nào thành công (logic OR)
         RequireOne
     }
 
+    /// <summary>
+    /// Executes ALL children simultaneously every tick.
+    /// Thực thi TẤT CẢ con đồng thời mỗi lần tick.
+    ///
+    /// Unlike Sequence/Selector which short-circuit, ParallelNode always
+    /// ticks every child that is still Running.
+    /// Khác với Sequence/Selector dừng lại sớm, ParallelNode luôn tick
+    /// tất cả con đang trong trạng thái Running.
+    ///
+    /// Use cases: simultaneous movement + perception, coordinated actions.
+    /// Trường hợp sử dụng: di chuyển + cảm nhận đồng thời, hành vi phối hợp.
+    /// </summary>
     public class ParallelNode : CompositeNode
     {
+        // Policy determines success condition: RequireAll or RequireOne
+        // Chính sách xác định điều kiện thành công: RequireAll hoặc RequireOne
         public ParallelPolicy Policy { get; set; } = ParallelPolicy.RequireAll;
 
+        // Tracks the state of each child independently
+        // Theo dõi trạng thái của mỗi con một cách độc lập
         private readonly List<BHState> _childStates = new List<BHState>();
 
         protected override void OnEnter()

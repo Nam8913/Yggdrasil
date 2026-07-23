@@ -1,5 +1,12 @@
 namespace BehaviorTree
 {
+    /// <summary>
+    /// Stops all movement by setting Rigidbody2D velocity to zero.
+    /// Dừng mọi chuyển động bằng cách đặt velocity Rigidbody2D về không.
+    ///
+    /// Always returns Success immediately.
+    /// Luôn trả về Success ngay lập tức.
+    /// </summary>
     public class StopAction : ActionNode
     {
         protected override BHState OnUpdate()
