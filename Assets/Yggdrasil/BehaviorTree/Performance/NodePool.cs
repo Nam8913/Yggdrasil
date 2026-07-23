@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace BehaviorTreePro.Performance
+namespace BehaviorTree.Performance
 {
     using BehaviorTree;
     public class NodePool<T> where T : NodeBT, new()

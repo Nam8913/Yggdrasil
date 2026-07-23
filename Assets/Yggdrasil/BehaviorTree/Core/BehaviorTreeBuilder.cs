@@ -37,6 +37,22 @@ namespace BehaviorTree
             return this;
         }
 
+        public BehaviorTreeBuilder RandomSequence()
+        {
+            var node = new RandomSequenceNode();
+            AddToParent(node);
+            _nodeStack.Push(node);
+            return this;
+        }
+
+        public BehaviorTreeBuilder RandomSelector()
+        {
+            var node = new RandomSelectorNode();
+            AddToParent(node);
+            _nodeStack.Push(node);
+            return this;
+        }
+
         public BehaviorTreeBuilder Parallel(ParallelPolicy policy = ParallelPolicy.RequireAll)
         {
             var node = new ParallelNode { Policy = policy };
@@ -77,6 +93,22 @@ namespace BehaviorTree
             return this;
         }
 
+        public BehaviorTreeBuilder Wait(float seconds)
+        {
+            var node = new WaitNode { WaitSeconds = seconds };
+            AddToParent(node);
+            _nodeStack.Push(node);
+            return this;
+        }
+
+        public BehaviorTreeBuilder WaitUntil(Func<bool> condition)
+        {
+            var node = new WaitUntilNode(condition);
+            AddToParent(node);
+            _nodeStack.Push(node);
+            return this;
+        }
+
         public BehaviorTreeBuilder Guard(Func<bool> condition, int priority = 0)
         {
             var node = new GuardNode(condition, null, priority);
@@ -97,9 +129,17 @@ namespace BehaviorTree
             return this;
         }
 
-        public BehaviorTreeBuilder Service(float interval, System.Action service)
+        public BehaviorTreeBuilder Condition(Func<bool> condition)
         {
-            UnityEngine.Debug.LogWarning("[BehaviorTreeBuilder] Service() is not yet implemented. Service node skipped.");
+            AddToParent(new ActionConditionNode(condition));
+            return this;
+        }
+
+        public BehaviorTreeBuilder Service(float interval, Action service)
+        {
+            var node = new ActionServiceNode(service, interval);
+            AddToParent(node);
+            _nodeStack.Push(node);
             return this;
         }
 

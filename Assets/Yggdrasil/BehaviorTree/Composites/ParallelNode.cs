@@ -18,13 +18,28 @@ namespace BehaviorTree
         {
             _childStates.Clear();
             for (int i = 0; i < Children.Count; i++)
-            {
                 _childStates.Add(BHState.Running);
+        }
+
+        protected override void OnReset()
+        {
+            base.OnReset();
+            _childStates.Clear();
+        }
+
+        private void EnsureChildStates()
+        {
+            if (_childStates.Count != Children.Count)
+            {
+                _childStates.Clear();
+                for (int i = 0; i < Children.Count; i++)
+                    _childStates.Add(BHState.Running);
             }
         }
 
         protected override BHState OnUpdate()
         {
+            EnsureChildStates();
             bool anyRunning = false;
 
             for (int i = 0; i < Children.Count; i++)
@@ -47,6 +62,7 @@ namespace BehaviorTree
         // Phase 1: Evaluate logic (thread-safe)
         protected override BHState OnEvaluate()
         {
+            EnsureChildStates();
             bool anyRunning = false;
 
             for (int i = 0; i < Children.Count; i++)
@@ -69,6 +85,7 @@ namespace BehaviorTree
         // Phase 2: Execute Unity API (main thread)
         protected override BHState OnExecute()
         {
+            EnsureChildStates();
             bool anyRunning = false;
 
             for (int i = 0; i < Children.Count; i++)

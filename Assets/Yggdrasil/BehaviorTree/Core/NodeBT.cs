@@ -153,6 +153,13 @@ namespace BehaviorTree
             }
         }
 
+        public virtual NodeBT DeepCopy()
+        {
+            var copy = (NodeBT)MemberwiseClone();
+            copy.Parent = null; // Reset parent for the copy
+            return copy;
+        }
+
         private void LogStateChange(BHState previousState, BHState newState)
         {
             if (previousState != newState && BTLogger.Instance != null)
