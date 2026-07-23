@@ -2,7 +2,8 @@ using UnityEngine;
 
 namespace BehaviorTree
 {
-    public static class BBKeys
+    // This class contains all the blackboard keys used in the behavior tree system.
+    public static partial class BBKeys
     {
         // General
         public static readonly BBKey<GameObject> Self = new("Self");

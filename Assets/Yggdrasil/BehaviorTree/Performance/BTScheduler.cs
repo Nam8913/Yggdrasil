@@ -7,16 +7,12 @@ namespace BehaviorTree.Performance
     {
         public static BTScheduler Instance { get; private set; }
 
-        [Header("Distance Thresholds (for Evaluate phase only)")]
-        [SerializeField] private float _closeRange = 15f;
-        [SerializeField] private float _midRange = 50f;
-
-        [Header("Evaluate Intervals (logic phase)")]
-        [SerializeField] private float _midRangeEvalInterval = 0.2f;
-        [SerializeField] private float _farRangeEvalInterval = 1f;
-
-        [Header("Staggering")]
-        [SerializeField] private int _maxEvalsPerFrame = 10;
+        List<RangeInterval> _evalIntervals = new List<RangeInterval>
+        {
+            new RangeInterval(15f, 0f), // Close range: every frame
+            new RangeInterval(50f, 0.2f), // Mid range: every 0.2 seconds
+            new RangeInterval(float.MaxValue, -1f, int.MaxValue) // Far range: never evaluate
+        };
 
         private readonly List<RegisteredNPC> _npcs = new List<RegisteredNPC>();
         private Transform _playerTransform;
@@ -24,7 +20,9 @@ namespace BehaviorTree.Performance
         private struct RegisteredNPC
         {
             public BehaviorTreeRunner Runner;
-            public float LastEvalTime;
+            // Thời gian tích lũy kể từ lần evaluate gần nhất (tính bằng giây)
+            public double PreviousEvalTime;
+            // Khoảng thời gian giữa các lần evaluate hiện tại (tính bằng giây), dựa trên khoảng cách tới player
             public float CurrentEvalInterval;
             public bool IsActive;
         }
@@ -47,10 +45,11 @@ namespace BehaviorTree.Performance
 
         public void Register(BehaviorTreeRunner runner)
         {
+            runner.enabled = false; // Disable the runner initially; it will be enabled when evaluated
             _npcs.Add(new RegisteredNPC
             {
                 Runner = runner,
-                LastEvalTime = 0f,
+                PreviousEvalTime = 0f,
                 CurrentEvalInterval = 0f,
                 IsActive = true
             });
@@ -66,6 +65,7 @@ namespace BehaviorTree.Performance
                     return;
                 }
             }
+            runner.enabled = true; // Enable the runner when unregistered
         }
 
         private void Update()
@@ -74,8 +74,16 @@ namespace BehaviorTree.Performance
                 return;
 
             Vector3 playerPos = _playerTransform.position;
-            float currentTime = Time.time;
-            int evalsThisFrame = 0;
+            double deltaTime = Time.deltaTime;
+
+            // Sort theo PreviousEvalTime giảm dần: NPC chờ lâu nhất được evaluate trước
+            _npcs.Sort((a, b) => b.PreviousEvalTime.CompareTo(a.PreviousEvalTime));
+
+            Dictionary<RangeInterval, int> evalsPerInterval = new Dictionary<RangeInterval, int>();
+            foreach (var interval in _evalIntervals)
+            {
+                evalsPerInterval.Add(interval, 0);
+            }
 
             for (int i = 0; i < _npcs.Count; i++)
             {
@@ -83,40 +91,55 @@ namespace BehaviorTree.Performance
                 if (!npc.IsActive || npc.Runner == null || !npc.Runner.IsInitialized || npc.Runner.gameObject == null)
                     continue;
 
-                // Phase 2: Execute EVERY frame (no throttling)
-                // This ensures movement speed is consistent for all NPCs
-                npc.Runner.Execute();
+                bool evaluated = false;
+                float distance = Vector3.Distance(npc.Runner.transform.position, playerPos);
+                RangeInterval requiredEvalInterval = GetRangeIntervalForDistance(distance);
 
-                // Phase 1: Evaluate at throttled rate based on distance
-                float distance = Vector3.Distance(
-                    npc.Runner.transform.position,
-                    playerPos
-                );
-
-                float requiredEvalInterval = GetEvalIntervalForDistance(distance);
-
-                if (evalsThisFrame < _maxEvalsPerFrame &&
-                    currentTime - npc.LastEvalTime >= requiredEvalInterval)
+                if (evalsPerInterval.TryGetValue(requiredEvalInterval, out int evalCount)
+                    && evalCount < requiredEvalInterval.MaxEvalsPerFrame
+                    && npc.PreviousEvalTime >= requiredEvalInterval.Interval)
                 {
                     npc.Runner.Evaluate();
-                    npc.LastEvalTime = currentTime;
-                    npc.CurrentEvalInterval = requiredEvalInterval;
-                    evalsThisFrame++;
+                    npc.PreviousEvalTime = 0;
+                    npc.CurrentEvalInterval = requiredEvalInterval.Interval;
+                    evalsPerInterval[requiredEvalInterval]++;
+                    evaluated = true;
                 }
 
+                if (!evaluated)
+                    npc.PreviousEvalTime += deltaTime;
+
                 _npcs[i] = npc;
+
+                npc.Runner.Execute();
             }
         }
 
-        private float GetEvalIntervalForDistance(float distance)
+        private RangeInterval GetRangeIntervalForDistance(float distance)
         {
-            if (distance < _closeRange)
-                return 0f; // Every frame
-            if (distance < _midRange)
-                return _midRangeEvalInterval;
-            return _farRangeEvalInterval;
+            foreach (var interval in _evalIntervals)
+            {
+                if (distance < interval.Range)
+                    return interval;
+            }
+            return new RangeInterval(float.MaxValue, -1f, int.MaxValue);
         }
 
         public int RegisteredCount => _npcs.Count;
+    }
+
+    [System.Serializable]
+    public struct RangeInterval
+    {
+        public float Range;
+        public float Interval;
+        public int MaxEvalsPerFrame;
+
+        public RangeInterval(float range, float interval, int maxEvalsPerFrame = 10)
+        {
+            Range = range;
+            Interval = interval;
+            MaxEvalsPerFrame = maxEvalsPerFrame;
+        }
     }
 }
