@@ -53,6 +53,38 @@ namespace BehaviorTree
             return this;
         }
 
+        public BehaviorTreeBuilder Nand()
+        {
+            var node = new NandNode();
+            AddToParent(node);
+            _nodeStack.Push(node);
+            return this;
+        }
+
+        public BehaviorTreeBuilder Nor()
+        {
+            var node = new NorNode();
+            AddToParent(node);
+            _nodeStack.Push(node);
+            return this;
+        }
+
+        public BehaviorTreeBuilder Xor()
+        {
+            var node = new XorNode();
+            AddToParent(node);
+            _nodeStack.Push(node);
+            return this;
+        }
+
+        public BehaviorTreeBuilder Xnor()
+        {
+            var node = new XnorNode();
+            AddToParent(node);
+            _nodeStack.Push(node);
+            return this;
+        }
+
         public BehaviorTreeBuilder Parallel(ParallelPolicy policy = ParallelPolicy.RequireAll)
         {
             var node = new ParallelNode { Policy = policy };
@@ -109,6 +141,22 @@ namespace BehaviorTree
             return this;
         }
 
+        public BehaviorTreeBuilder RepeatUntil(Func<bool> condition)
+        {
+            var node = new RepeatUntilNode { Condition = condition };
+            AddToParent(node);
+            _nodeStack.Push(node);
+            return this;
+        }
+
+        public BehaviorTreeBuilder RepeatUntilState(BHState desiredState = BHState.Success)
+        {
+            var node = new RepeatUntilStateNode { Value = desiredState };
+            AddToParent(node);
+            _nodeStack.Push(node);
+            return this;
+        }
+
         public BehaviorTreeBuilder Guard(Func<bool> condition, int priority = 0)
         {
             var node = new GuardNode(condition, null, priority);
@@ -152,6 +200,32 @@ namespace BehaviorTree
             }
 
             _nodeStack.Pop();
+            return this;
+        }
+
+        public BehaviorTreeBuilder Action<T>(T actionNode) where T : ActionNode
+        {
+            AddToParent(actionNode);
+            return this;
+        }
+
+        public BehaviorTreeBuilder Composite<T>(T compositeNode) where T : CompositeNode
+        {
+            AddToParent(compositeNode);
+            _nodeStack.Push(compositeNode);
+            return this;
+        }
+
+        public BehaviorTreeBuilder Decorator<T>(T decoratorNode) where T : DecoratorNode
+        {
+            AddToParent(decoratorNode);
+            _nodeStack.Push(decoratorNode);
+            return this;
+        }
+
+        public BehaviorTreeBuilder Condition<T>(T conditionNode) where T : ConditionNode
+        {
+            AddToParent(conditionNode);
             return this;
         }
 
