@@ -3,8 +3,8 @@ using System;
 namespace BehaviorTree
 {
     /// <summary>
-    /// Concrete ConditionNode that wraps a Func&lt;bool&gt; lambda.
-    /// ConditionNode cụ thể bọc một lambda Func&lt;bool&gt;.
+    /// Concrete ConditionNode that wraps a Func<bool> lambda.
+    /// ConditionNode cụ thể bọc một lambda Func<bool>.
     ///
     /// Usage in builder:
     /// Sử dụng trong builder:

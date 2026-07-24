@@ -101,6 +101,22 @@ namespace BehaviorTree
             return this;
         }
 
+        public BehaviorTreeBuilder Succeeder()
+        {
+            var node = new SucceederNode();
+            AddToParent(node);
+            _nodeStack.Push(node);
+            return this;
+        }
+
+        public BehaviorTreeBuilder Failer()
+        {
+            var node = new FailerNode();
+            AddToParent(node);
+            _nodeStack.Push(node);
+            return this;
+        }
+
         public BehaviorTreeBuilder Cooldown(float seconds)
         {
             var node = new CooldownNode { CooldownSeconds = seconds };
