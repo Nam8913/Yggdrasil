@@ -4,6 +4,10 @@ namespace BehaviorTree
     /// NOR gate: succeeds only if ALL children fail, fails if ANY child succeeds.
     /// Cổng NOR: chỉ thành công khi TẤT CẢ con thất bại, thất bại nếu BẤT KỲ con nào thành công.
     ///
+    /// - BreakOnFirstSuccess = false: tick all children, then decide.
+    /// - BreakOnFirstSuccess = true (default): stop and return Failure as soon as any child succeeds.
+    /// BreakOnFirstSuccess = false: tick tất cả con, rồi quyết định.
+    /// BreakOnFirstSuccess = true (mặc định): dừng và trả về Failure ngay khi bất kỳ con nào thành công.
     /// Truth table (2 children):
     /// Bảng chân trị (2 con):
     ///   A=Failure, B=Failure → Success
@@ -16,13 +20,17 @@ namespace BehaviorTree
     /// </summary>
     public class NorNode : CompositeNode
     {
+        // If true, stop ticking remaining children when first success is found
+        // Nếu true, ngừng tick các con còn lại khi tìm thấy thành công đầu tiên
+        public bool BreakOnFirstSuccess { get; set; } = true;
+
         protected override BHState OnUpdate()
         {
             bool anySucceeded = false;
 
-            for (int i = 0; i < Children.Count; i++)
+            while (CurrentChildIndex < Children.Count)
             {
-                var state = Children[i].Tick();
+                var state = Children[CurrentChildIndex].Tick();
 
                 if (state == BHState.Running)
                     return BHState.Running;
@@ -30,13 +38,17 @@ namespace BehaviorTree
                 if (state == BHState.Success)
                 {
                     anySucceeded = true;
-                    // Don't break — still need to tick remaining children
-                    // Không break — vẫn cần tick các con còn lại
+                    if (BreakOnFirstSuccess)
+                    {
+                        CurrentChildIndex = 0;
+                        return BHState.Failure;
+                    }
                 }
+
+                CurrentChildIndex++;
             }
 
-            // NOR: succeed only if ALL failed (no successes found)
-            // NOR: chỉ thành công khi TẤT CẢ thất bại (không tìm thấy thành công nào)
+            CurrentChildIndex = 0;
             return anySucceeded ? BHState.Failure : BHState.Success;
         }
 
@@ -44,17 +56,27 @@ namespace BehaviorTree
         {
             bool anySucceeded = false;
 
-            for (int i = 0; i < Children.Count; i++)
+            while (CurrentChildIndex < Children.Count)
             {
-                var state = Children[i].Evaluate();
+                var state = Children[CurrentChildIndex].Evaluate();
 
                 if (state == BHState.Running)
                     return BHState.Running;
 
                 if (state == BHState.Success)
+                {
                     anySucceeded = true;
+                    if (BreakOnFirstSuccess)
+                    {
+                        CurrentChildIndex = 0;
+                        return BHState.Failure;
+                    }
+                }
+
+                CurrentChildIndex++;
             }
 
+            CurrentChildIndex = 0;
             return anySucceeded ? BHState.Failure : BHState.Success;
         }
 

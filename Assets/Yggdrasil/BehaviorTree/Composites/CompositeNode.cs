@@ -52,5 +52,16 @@ namespace BehaviorTree
                 child?.Reset();
             }
         }
+
+        // Abort propagates to all children, ensuring clean cancellation
+        // Abort lan truyền xuống tất cả con, đảm bảo hủy sạch sẽ
+        public override void Abort()
+        {
+            foreach (var child in Children)
+            {
+                child?.Abort();
+            }
+            base.Abort();
+        }
     }
 }

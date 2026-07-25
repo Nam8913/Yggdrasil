@@ -21,6 +21,7 @@ namespace BehaviorTree
         // Condition that must become true before the child runs
         // Điều kiện phải trở thành đúng trước khi con chạy
         public Func<bool> Condition { get; set; }
+        public BHState ReturnIfChildNull { get; set; } = BHState.Failure;
 
         public WaitUntilNode(Func<bool> condition)
         {
@@ -32,6 +33,9 @@ namespace BehaviorTree
             if (Condition != null && !Condition.Invoke())
                 return BHState.Running;
 
+            if(Child == null)
+                return ReturnIfChildNull;
+
             return Child.Tick();
         }
 
@@ -40,6 +44,9 @@ namespace BehaviorTree
             if (Condition != null && !Condition.Invoke())
                 return BHState.Running;
 
+            if(Child == null)
+                return ReturnIfChildNull;
+
             return Child.Evaluate();
         }
 
@@ -47,6 +54,9 @@ namespace BehaviorTree
         {
             if (Condition != null && !Condition.Invoke())
                 return BHState.Running;
+
+            if(Child == null)
+                return ReturnIfChildNull;
 
             return Child.Execute();
         }

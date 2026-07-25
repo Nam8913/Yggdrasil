@@ -4,6 +4,10 @@ namespace BehaviorTree
     /// XOR gate: succeeds when children return a MIX of Success and Failure.
     /// Cổng XOR: thành công khi các con trả về CẢ Success lẫn Failure.
     ///
+    /// - BreakOnMixed = true (default): return Success as soon as both success and failure are found.
+    /// - BreakOnMixed = false: tick all children first, then check.
+    /// BreakOnMixed = true (mặc định): trả về Success ngay khi tìm thấy cả success và failure.
+    /// BreakOnMixed = false: tick tất cả con trước, rồi kiểm tra.
     /// Truth table (2 children):
     /// Bảng chân trị (2 con):
     ///   A=Success, B=Success → Failure  (all same = no disagreement)
@@ -16,14 +20,18 @@ namespace BehaviorTree
     /// </summary>
     public class XorNode : CompositeNode
     {
+        // If true, return Success immediately when mismatch (success + failure) is found
+        // Nếu true, trả về Success ngay khi tìm thấy mâu thuẫn (success + failure)
+        public bool BreakOnMixed { get; set; } = true;
+
         protected override BHState OnUpdate()
         {
             bool hasSuccess = false;
             bool hasFailure = false;
 
-            for (int i = 0; i < Children.Count; i++)
+            while (CurrentChildIndex < Children.Count)
             {
-                var state = Children[i].Tick();
+                var state = Children[CurrentChildIndex].Tick();
 
                 if (state == BHState.Running)
                     return BHState.Running;
@@ -34,14 +42,13 @@ namespace BehaviorTree
                 if (state == BHState.Failure)
                     hasFailure = true;
 
-                // Both found — no need to tick remaining children
-                // Cả hai đã tìm thấy — không cần tick các con còn lại
-                if (hasSuccess && hasFailure)
-                    return BHState.Success;
+                CurrentChildIndex++;
+
+                if (BreakOnMixed && hasSuccess && hasFailure)
+                    break;
             }
 
-            // XOR: succeed only if mixed (both success and failure present)
-            // XOR: chỉ thành công nếu hỗn hợp (cả success và failure đều có)
+            CurrentChildIndex = 0;
             return (hasSuccess && hasFailure) ? BHState.Success : BHState.Failure;
         }
 
@@ -50,9 +57,9 @@ namespace BehaviorTree
             bool hasSuccess = false;
             bool hasFailure = false;
 
-            for (int i = 0; i < Children.Count; i++)
+            while (CurrentChildIndex < Children.Count)
             {
-                var state = Children[i].Evaluate();
+                var state = Children[CurrentChildIndex].Evaluate();
 
                 if (state == BHState.Running)
                     return BHState.Running;
@@ -63,10 +70,13 @@ namespace BehaviorTree
                 if (state == BHState.Failure)
                     hasFailure = true;
 
-                if (hasSuccess && hasFailure)
-                    return BHState.Success;
+                CurrentChildIndex++;
+
+                if (BreakOnMixed && hasSuccess && hasFailure)
+                    break;
             }
 
+            CurrentChildIndex = 0;
             return (hasSuccess && hasFailure) ? BHState.Success : BHState.Failure;
         }
 

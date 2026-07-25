@@ -28,6 +28,11 @@ public class Scene : MonoBehaviour
         mainThread = Thread.CurrentThread;
         Debug.Log($"Main thread ID: {mainThread.ManagedThreadId}");
         lastMemoryRecorded = Profiler.GetTotalAllocatedMemoryLong();
+
+        GameObject npc = new GameObject("NPC");
+        var builder = BuildSurvivalBehaviorTree(npc, new Blackboard());
+        var runner = npc.AddComponent<BehaviorTreeRunner>();
+        runner.Initialize(builder.root, builder.blackboard);
          
        Record();
        Log($"Scene.Start end - Time elapsed: {stopwatch.ElapsedMilliseconds} ms.");
@@ -116,5 +121,61 @@ public class Scene : MonoBehaviour
             return $"{bytes / (1024f * 1024f):F2} MB";
         else
             return $"{bytes / (1024f * 1024f * 1024f):F2} GB";
+    }
+
+    private (RootNode root, Blackboard blackboard) BuildSurvivalBehaviorTree(GameObject GO, Blackboard bb)
+    {
+        return new BehaviorTreeBuilder(bb)
+        .Root()
+            .Sequence()
+                .Action(new WanderAction(GO.transform))
+                .Wait(1f)
+                    .Action(new LookAroundAction(GO.transform))
+                .End()
+            .End()
+            
+        .BuildWithBlackboard();
+    }
+
+    public class LookAroundAction : ActionNode
+    {
+        private readonly Transform _creature;
+        private float _lookDuration = 2f;
+        private float _elapsed;
+        private float _startAngle;
+
+        public LookAroundAction(Transform creature) { _creature = creature; }
+
+        protected override void OnEnter()
+        {
+            _elapsed = 0f;
+            _startAngle = Mathf.Atan2(_creature.transform.right.y, _creature.transform.right.x) * Mathf.Rad2Deg;
+            Debug.Log($"[{_creature.name}] Looking around...");
+            Blackboard.Remove(BBKeys.HeardNoise);
+        }
+
+        protected override void OnExit()
+        {
+            Debug.Log($"[{_creature.name}] Finished looking around.");
+        }
+
+        protected override BHState OnEvaluate()
+        {
+            _elapsed += Time.deltaTime;
+            return _elapsed >= _lookDuration ? BHState.Success : BHState.Running;
+        }
+
+        protected override BHState OnExecute()
+        {
+            // Quay đầu nhìn xung quanh (quay 360 độ trong thời gian _lookDuration)
+            float t = _elapsed / _lookDuration;
+            float angle = _startAngle + t * 360f;
+            Vector2 dir = new Vector2(Mathf.Cos(angle * Mathf.Deg2Rad), Mathf.Sin(angle * Mathf.Deg2Rad));
+            _creature.transform.right = dir;
+
+            return EvaluatedState;
+        }
+
+        protected override BHState OnUpdate() { OnEvaluate(); return OnExecute(); }
     }
 }

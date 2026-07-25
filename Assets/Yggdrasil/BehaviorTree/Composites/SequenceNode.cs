@@ -4,18 +4,21 @@ namespace BehaviorTree
     /// Executes children in order. Returns Success only if ALL children succeed.
     /// Thực thi các con theo thứ tự. Chỉ trả về Success khi TẤT CẢ con thành công.
     ///
-    /// - If a child returns Running → sequence pauses, returns Running.
-    /// - If a child returns Failure → sequence fails immediately, resets index.
-    /// Nếu một con trả về Running → sequence tạm dừng, trả về Running.
-    /// Nếu một con trả về Failure → sequence thất bại ngay lập tức, reset chỉ số.
-    ///
-    /// Analogous to AND logic gate / logical conjunction.
-    /// Tương tự cổng logic AND / phép hội.
+    /// - BreakOnFirstFailure = true (default): stop and return Failure immediately.
+    /// - BreakOnFirstFailure = false: tick all children, then decide.
+    /// BreakOnFirstFailure = true (mặc định): dừng và trả về Failure ngay lập tức.
+    /// BreakOnFirstFailure = false: tick tất cả con, rồi quyết định.
     /// </summary>
     public class SequenceNode : CompositeNode
     {
+        // If true, return Failure as soon as a child fails
+        // Nếu true, trả về Failure ngay khi một con thất bại
+        public bool BreakOnFirstFailure { get; set; } = true;
+
         protected override BHState OnUpdate()
         {
+            bool anyFailed = false;
+
             while (CurrentChildIndex < Children.Count)
             {
                 var state = Children[CurrentChildIndex].Tick();
@@ -25,19 +28,25 @@ namespace BehaviorTree
 
                 if (state == BHState.Failure)
                 {
-                    CurrentChildIndex = 0;
-                    return BHState.Failure;
+                    anyFailed = true;
+                    if (BreakOnFirstFailure)
+                    {
+                        CurrentChildIndex = 0;
+                        return BHState.Failure;
+                    }
                 }
 
                 CurrentChildIndex++;
             }
 
             CurrentChildIndex = 0;
-            return BHState.Success;
+            return anyFailed ? BHState.Failure : BHState.Success;
         }
 
         protected override BHState OnEvaluate()
         {
+            bool anyFailed = false;
+
             while (CurrentChildIndex < Children.Count)
             {
                 var state = Children[CurrentChildIndex].Evaluate();
@@ -47,23 +56,26 @@ namespace BehaviorTree
 
                 if (state == BHState.Failure)
                 {
-                    CurrentChildIndex = 0;
-                    return BHState.Failure;
+                    anyFailed = true;
+                    if (BreakOnFirstFailure)
+                    {
+                        CurrentChildIndex = 0;
+                        return BHState.Failure;
+                    }
                 }
 
                 CurrentChildIndex++;
             }
 
             CurrentChildIndex = 0;
-            return BHState.Success;
+            return anyFailed ? BHState.Failure : BHState.Success;
         }
 
         protected override BHState OnExecute()
         {
             if (CurrentChildIndex < Children.Count)
-            {
                 return Children[CurrentChildIndex].Execute();
-            }
+
             return BHState.Success;
         }
     }

@@ -37,17 +37,9 @@ namespace BehaviorTree
             return this;
         }
 
-        public BehaviorTreeBuilder RandomSequence()
+        public BehaviorTreeBuilder RandomComposite(LogicMode logic = LogicMode.AND, RandomTickMode tickMode = RandomTickMode.Sequential)
         {
-            var node = new RandomSequenceNode();
-            AddToParent(node);
-            _nodeStack.Push(node);
-            return this;
-        }
-
-        public BehaviorTreeBuilder RandomSelector()
-        {
-            var node = new RandomSelectorNode();
+            var node = new RandomCompositeNode { Logic = logic, TickMode = tickMode };
             AddToParent(node);
             _nodeStack.Push(node);
             return this;

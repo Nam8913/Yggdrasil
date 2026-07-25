@@ -8,13 +8,29 @@ namespace BehaviorTree
     /// </summary>
     public enum ParallelPolicy
     {
-        // Succeed only when ALL children succeed (AND logic)
-        // Chỉ thành công khi TẤT CẢ con thành công (logic AND)
+        // AND: succeed only when ALL children succeed
+        // AND: chỉ thành công khi TẤT CẢ con thành công
         RequireAll,
 
-        // Succeed when ANY child succeeds (OR logic)
-        // Thành công khi BẤT KỲ con nào thành công (logic OR)
-        RequireOne
+        // OR: succeed when ANY child succeeds
+        // OR: thành công khi BẤT KỲ con nào thành công
+        RequireOne,
+
+        // NAND: succeed if ANY child fails (fail only if all succeed)
+        // NAND: thành công nếu BẤT KỲ con nào thất bại
+        RequireAnyFailure,
+
+        // NOR: succeed only when ALL children fail
+        // NOR: chỉ thành công khi TẤT CẢ con thất bại
+        RequireAllFailure,
+
+        // XOR: succeed if children return mixed results (both success and failure)
+        // XOR: thành công nếu kết quả hỗn hợp (cả success và failure)
+        RequireMixed,
+
+        // XNOR: succeed if all children agree (all succeed or all fail)
+        // XNOR: thành công nếu tất cả con đồng ý (đồng success hoặc đồng failure)
+        RequireConsistent
     }
 
     /// <summary>
@@ -31,8 +47,8 @@ namespace BehaviorTree
     /// </summary>
     public class ParallelNode : CompositeNode
     {
-        // Policy determines success condition: RequireAll or RequireOne
-        // Chính sách xác định điều kiện thành công: RequireAll hoặc RequireOne
+        // Policy determines success condition
+        // Chính sách xác định điều kiện thành công
         public ParallelPolicy Policy { get; set; } = ParallelPolicy.RequireAll;
 
         // Tracks the state of each child independently
@@ -65,49 +81,17 @@ namespace BehaviorTree
         protected override BHState OnUpdate()
         {
             EnsureChildStates();
-            bool anyRunning = false;
-
-            for (int i = 0; i < Children.Count; i++)
-            {
-                if (_childStates[i] != BHState.Running)
-                    continue;
-
-                _childStates[i] = Children[i].Tick();
-
-                if (_childStates[i] == BHState.Running)
-                    anyRunning = true;
-            }
-
-            if (anyRunning)
-                return BHState.Running;
-
-            return Policy == ParallelPolicy.RequireAll ? CheckAll() : CheckOne();
+            if (TickChildren()) return BHState.Running;
+            return EvaluatePolicy();
         }
 
-        // Phase 1: Evaluate logic (thread-safe)
         protected override BHState OnEvaluate()
         {
             EnsureChildStates();
-            bool anyRunning = false;
-
-            for (int i = 0; i < Children.Count; i++)
-            {
-                if (_childStates[i] != BHState.Running)
-                    continue;
-
-                _childStates[i] = Children[i].Evaluate();
-
-                if (_childStates[i] == BHState.Running)
-                    anyRunning = true;
-            }
-
-            if (anyRunning)
-                return BHState.Running;
-
-            return Policy == ParallelPolicy.RequireAll ? CheckAll() : CheckOne();
+            if (TickChildren()) return BHState.Running;
+            return EvaluatePolicy();
         }
 
-        // Phase 2: Execute Unity API (main thread)
         protected override BHState OnExecute()
         {
             EnsureChildStates();
@@ -127,27 +111,69 @@ namespace BehaviorTree
             if (anyRunning)
                 return BHState.Running;
 
-            return Policy == ParallelPolicy.RequireAll ? CheckAll() : CheckOne();
+            return EvaluatePolicy();
         }
 
-        private BHState CheckAll()
+        // Tick all children that are still Running
+        // Tick tất cả con đang Running
+        // Returns true if any child is still Running
+        private bool TickChildren()
         {
-            for (int i = 0; i < _childStates.Count; i++)
+            bool anyRunning = false;
+
+            for (int i = 0; i < Children.Count; i++)
             {
-                if (_childStates[i] == BHState.Failure)
-                    return BHState.Failure;
+                if (_childStates[i] != BHState.Running)
+                    continue;
+
+                _childStates[i] = Children[i].Tick();
+
+                if (_childStates[i] == BHState.Running)
+                    anyRunning = true;
             }
-            return BHState.Success;
+
+            return anyRunning;
         }
 
-        private BHState CheckOne()
+        // Evaluate the final result based on the policy
+        // Đánh giá kết quả cuối cùng dựa trên chính sách
+        private BHState EvaluatePolicy()
         {
+            int successCount = 0;
+            int failureCount = 0;
+
             for (int i = 0; i < _childStates.Count; i++)
             {
                 if (_childStates[i] == BHState.Success)
-                    return BHState.Success;
+                    successCount++;
+                else if (_childStates[i] == BHState.Failure)
+                    failureCount++;
             }
-            return BHState.Failure;
+
+            int total = _childStates.Count;
+
+            return Policy switch
+            {
+                // AND: all must succeed
+                ParallelPolicy.RequireAll => successCount == total ? BHState.Success : BHState.Failure,
+
+                // OR: any must succeed
+                ParallelPolicy.RequireOne => successCount > 0 ? BHState.Success : BHState.Failure,
+
+                // NAND: any must fail (fail only if all succeed)
+                ParallelPolicy.RequireAnyFailure => failureCount > 0 ? BHState.Success : BHState.Failure,
+
+                // NOR: all must fail
+                ParallelPolicy.RequireAllFailure => failureCount == total ? BHState.Success : BHState.Failure,
+
+                // XOR: mixed results (both success and failure)
+                ParallelPolicy.RequireMixed => (successCount > 0 && failureCount > 0) ? BHState.Success : BHState.Failure,
+
+                // XNOR: all agree (all success or all failure)
+                ParallelPolicy.RequireConsistent => (successCount == 0 || failureCount == 0) ? BHState.Success : BHState.Failure,
+
+                _ => BHState.Failure
+            };
         }
     }
 }

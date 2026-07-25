@@ -19,6 +19,7 @@ namespace BehaviorTree
         // Seconds to wait before executing the child
         // Số giây chờ trước khi thực thi con
         public float WaitSeconds { get; set; } = 1f;
+        public BHState ReturnIfChildNull { get; set; } = BHState.Success;
 
         private float _startTime;
         private bool _waiting;
@@ -39,6 +40,9 @@ namespace BehaviorTree
                 _waiting = false;
             }
 
+            if(Child == null)
+                return ReturnIfChildNull;
+
             return Child.Tick();
         }
 
@@ -52,6 +56,9 @@ namespace BehaviorTree
                 _waiting = false;
             }
 
+            if(Child == null)
+                return ReturnIfChildNull;
+
             return Child.Evaluate();
         }
 
@@ -59,6 +66,9 @@ namespace BehaviorTree
         {
             if (_waiting)
                 return BHState.Running;
+
+            if(Child == null)
+                return ReturnIfChildNull;
 
             return Child.Execute();
         }

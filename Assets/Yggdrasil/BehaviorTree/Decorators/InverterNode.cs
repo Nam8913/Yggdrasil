@@ -7,8 +7,8 @@ namespace BehaviorTree
     /// Running is passed through unchanged.
     /// Running được giữ nguyên không đổi.
     ///
-    /// Usage: "do something UNLESS condition is true"
-    /// Sử dụng: "làm gì đó TRỪ KHI điều kiện đúng"
+    /// Usage: "do something UNLESS condition is true" or "do something IF condition is false".
+    /// Sử dụng: "làm gì đó TRỪ KHI điều kiện đúng" hoặc "làm gì đó NẾU điều kiện sai".
     /// </summary>
     public class InverterNode : DecoratorNode
     {
