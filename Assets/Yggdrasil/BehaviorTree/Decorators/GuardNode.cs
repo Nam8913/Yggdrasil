@@ -28,10 +28,9 @@ namespace BehaviorTree
             Priority = priority;
         }
 
-        protected override BHState OnUpdate()
+        protected override BHState OnUpdate(ref RunnerObserver observer)
         {
-            if (Child == null)
-                return BHState.Failure;
+            if (Child == null) return BHState.Failure;
 
             if (!Condition.Invoke())
             {
@@ -45,13 +44,15 @@ namespace BehaviorTree
                 return BHState.Failure;
             }
 
-            return Child.Tick();
+            observer.Descend();
+            var state = Child.Tick(ref observer);
+            observer.Ascend();
+            return state;
         }
 
-        protected override BHState OnEvaluate()
+        protected override BHState OnEvaluate(ref RunnerObserver observer)
         {
-            if (Child == null)
-                return BHState.Failure;
+            if (Child == null) return BHState.Failure;
 
             if (!Condition.Invoke())
             {
@@ -63,14 +64,15 @@ namespace BehaviorTree
                 return BHState.Failure;
             }
 
-            return Child.Evaluate();
+            observer.Descend();
+            var state = Child.Evaluate(ref observer);
+            observer.Ascend();
+            return state;
         }
 
         protected override BHState OnExecute()
         {
-            if (Child == null)
-                return BHState.Failure;
-
+            if (Child == null) return BHState.Failure;
             return Child.Execute();
         }
     }

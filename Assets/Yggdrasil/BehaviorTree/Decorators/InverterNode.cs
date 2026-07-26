@@ -12,15 +12,19 @@ namespace BehaviorTree
     /// </summary>
     public class InverterNode : DecoratorNode
     {
-        protected override BHState OnUpdate()
+        protected override BHState OnUpdate(ref RunnerObserver observer)
         {
-            var state = Child.Tick();
+            observer.Descend();
+            var state = Child.Tick(ref observer);
+            observer.Ascend();
             return Invert(state);
         }
 
-        protected override BHState OnEvaluate()
+        protected override BHState OnEvaluate(ref RunnerObserver observer)
         {
-            var state = Child.Evaluate();
+            observer.Descend();
+            var state = Child.Evaluate(ref observer);
+            observer.Ascend();
             return Invert(state);
         }
 

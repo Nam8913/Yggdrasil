@@ -55,16 +55,16 @@ namespace BehaviorTree
         protected virtual void OnEnter() { }
         protected virtual void OnExit() { }
 
-        // Legacy: full tick on main thread (backward compatible)
-        protected abstract BHState OnUpdate();
+        // Legacy: full tick on main thread (backward compatible) — all subclasses must implement with observer
+        protected abstract BHState OnUpdate(ref RunnerObserver observer);
 
         // Phase 1: Logic evaluation
         // NOTE: Currently runs on main thread via BTScheduler.
         // OnEnter/OnExit may use Unity APIs safely in current implementation.
         // If moving to worker thread in future, audit all OnEnter/OnExit overrides.
-        protected virtual BHState OnEvaluate()
+        protected virtual BHState OnEvaluate(ref RunnerObserver observer)
         {
-            return OnUpdate();
+            return OnUpdate(ref observer);
         }
 
         // Phase 2: Unity API execution (main thread only)
@@ -75,11 +75,13 @@ namespace BehaviorTree
             return EvaluatedState;
         }
 
-        // Legacy: full tick on main thread
-        public BHState Tick()
+        // Full tick with observer
+        public BHState Tick(ref RunnerObserver observer)
         {
             var sw = Stopwatch.StartNew();
             var previousState = CurrentState;
+
+            observer.EnterNode(this);
 
             if (!IsRunning)
             {
@@ -87,28 +89,31 @@ namespace BehaviorTree
                 IsRunning = true;
             }
 
-            CurrentState = OnUpdate();
+            CurrentState = OnUpdate(ref observer);
 
             if (CurrentState != BHState.Running)
             {
                 OnExit();
                 IsRunning = false;
             }
-
+ 
             sw.Stop();
             TotalTicks++;
             LastTickDurationMs = (float)sw.Elapsed.TotalMilliseconds;
 
+            observer.ExitNode(this, CurrentState, LastTickDurationMs);
             LogStateChange(previousState, CurrentState);
 
             return CurrentState;
         }
 
-        // Phase 1: Evaluate (can run on worker thread)
-        public BHState Evaluate()
+        // Phase 1: Evaluate with observer
+        public BHState Evaluate(ref RunnerObserver observer)
         {
             var sw = Stopwatch.StartNew();
             var previousState = CurrentState;
+
+            observer.EnterNode(this);
 
             if (!IsRunning)
             {
@@ -116,7 +121,7 @@ namespace BehaviorTree
                 IsRunning = true;
             }
 
-            EvaluatedState = OnEvaluate();
+            EvaluatedState = OnEvaluate(ref observer);
             CurrentState = EvaluatedState;
 
             if (CurrentState != BHState.Running)
@@ -129,13 +134,13 @@ namespace BehaviorTree
             TotalTicks++;
             LastTickDurationMs = (float)sw.Elapsed.TotalMilliseconds;
 
+            observer.ExitNode(this, CurrentState, LastTickDurationMs);
             LogStateChange(previousState, CurrentState);
 
             return CurrentState;
         }
 
-        // Phase 2: Execute (main thread only)
-        // Called every frame, uses cached EvaluatedState
+        // Phase 2: Execute
         public BHState Execute()
         {
             if (EvaluatedState != BHState.Running)

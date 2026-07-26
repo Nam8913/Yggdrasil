@@ -30,7 +30,7 @@ namespace BehaviorTree
             _waiting = true;
         }
 
-        protected override BHState OnUpdate()
+        protected override BHState OnUpdate(ref RunnerObserver observer)
         {
             if (_waiting)
             {
@@ -43,10 +43,13 @@ namespace BehaviorTree
             if(Child == null)
                 return ReturnIfChildNull;
 
-            return Child.Tick();
+            observer.Descend();
+            var state = Child.Tick(ref observer);
+            observer.Ascend();
+            return state;
         }
 
-        protected override BHState OnEvaluate()
+        protected override BHState OnEvaluate(ref RunnerObserver observer)
         {
             if (_waiting)
             {
@@ -59,7 +62,10 @@ namespace BehaviorTree
             if(Child == null)
                 return ReturnIfChildNull;
 
-            return Child.Evaluate();
+            observer.Descend();
+            var state = Child.Evaluate(ref observer);
+            observer.Ascend();
+            return state;
         }
 
         protected override BHState OnExecute()

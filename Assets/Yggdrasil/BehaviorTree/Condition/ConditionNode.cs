@@ -12,12 +12,12 @@ namespace BehaviorTree
     /// </summary>
     public abstract class ConditionNode : NodeBT
     {
-        protected override BHState OnUpdate()
+        protected override BHState OnUpdate(ref RunnerObserver observer)
         {
             return Check() ? BHState.Success : BHState.Failure;
         }
 
-        protected override BHState OnEvaluate()
+        protected override BHState OnEvaluate(ref RunnerObserver observer)
         {
             return Check() ? BHState.Success : BHState.Failure;
         }

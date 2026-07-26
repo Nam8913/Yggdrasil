@@ -25,12 +25,14 @@ namespace BehaviorTree
         // Thời điểm của lần thực thi thành công/thất bại cuối cùng
         private float _lastExecuteTime = -999f;
 
-        protected override BHState OnUpdate()
+        protected override BHState OnUpdate(ref RunnerObserver observer)
         {
             if (Time.time - _lastExecuteTime < CooldownSeconds)
                 return BHState.Failure;
 
-            var state = Child.Tick();
+            observer.Descend();
+            var state = Child.Tick(ref observer);
+            observer.Ascend();
 
             if (state != BHState.Running)
                 _lastExecuteTime = Time.time;
@@ -38,12 +40,14 @@ namespace BehaviorTree
             return state;
         }
 
-        protected override BHState OnEvaluate()
+        protected override BHState OnEvaluate(ref RunnerObserver observer)
         {
             if (Time.time - _lastExecuteTime < CooldownSeconds)
                 return BHState.Failure;
 
-            var state = Child.Evaluate();
+            observer.Descend();
+            var state = Child.Evaluate(ref observer);
+            observer.Ascend();
 
             if (state != BHState.Running)
                 _lastExecuteTime = Time.time;

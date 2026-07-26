@@ -9,7 +9,7 @@ namespace BehaviorTree
     /// </summary>
     public class StopAction : ActionNode
     {
-        protected override BHState OnUpdate()
+        protected override BHState OnUpdate(ref RunnerObserver observer)
         {
             return Stop();
         }

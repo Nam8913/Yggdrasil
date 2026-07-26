@@ -27,7 +27,7 @@ namespace BehaviorTree
             _startTime = Time.time;
         }
 
-        protected override BHState OnUpdate()
+        protected override BHState OnUpdate(ref RunnerObserver observer)
         {
             if (Time.time - _startTime >= LimitSeconds)
             {
@@ -35,10 +35,13 @@ namespace BehaviorTree
                 return BHState.Failure;
             }
 
-            return Child.Tick();
+            observer.Descend();
+            var state = Child.Tick(ref observer);
+            observer.Ascend();
+            return state;
         }
 
-        protected override BHState OnEvaluate()
+        protected override BHState OnEvaluate(ref RunnerObserver observer)
         {
             if (Time.time - _startTime >= LimitSeconds)
             {
@@ -46,7 +49,10 @@ namespace BehaviorTree
                 return BHState.Failure;
             }
 
-            return Child.Evaluate();
+            observer.Descend();
+            var state = Child.Evaluate(ref observer);
+            observer.Ascend();
+            return state;
         }
 
         protected override BHState OnExecute()

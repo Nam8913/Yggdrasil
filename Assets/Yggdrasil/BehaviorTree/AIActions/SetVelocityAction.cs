@@ -15,7 +15,7 @@ namespace BehaviorTree
         // Vectơ velocity cần áp dụng (đơn vị/giây)
         public Vector2 Velocity { get; set; }
 
-        protected override BHState OnUpdate()
+        protected override BHState OnUpdate(ref RunnerObserver observer)
         {
             return Apply();
         }

@@ -36,15 +36,15 @@ namespace BehaviorTree
             _transform = transform;
         }
 
-        protected override BHState OnUpdate()
+        protected override BHState OnUpdate(ref RunnerObserver observer)
         {
-            OnEvaluate();
+            OnEvaluate(ref observer);
             return OnExecute();
         }
 
         // Phase 1: Decide where to go (pure logic)
         // Giai đoạn 1: Quyết định đi đâu (logic thuần túy)
-        protected override BHState OnEvaluate()
+        protected override BHState OnEvaluate(ref RunnerObserver observer)
         {
             if (_transform == null)
                 return BHState.Failure;

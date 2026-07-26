@@ -78,17 +78,17 @@ namespace BehaviorTree
             }
         }
 
-        protected override BHState OnUpdate()
+        protected override BHState OnUpdate(ref RunnerObserver observer)
         {
             EnsureChildStates();
-            if (TickChildren()) return BHState.Running;
+            if (TickChildren(ref observer)) return BHState.Running;
             return EvaluatePolicy();
         }
 
-        protected override BHState OnEvaluate()
+        protected override BHState OnEvaluate(ref RunnerObserver observer)
         {
             EnsureChildStates();
-            if (TickChildren()) return BHState.Running;
+            if (TickChildren(ref observer)) return BHState.Running;
             return EvaluatePolicy();
         }
 
@@ -117,7 +117,7 @@ namespace BehaviorTree
         // Tick all children that are still Running
         // Tick tất cả con đang Running
         // Returns true if any child is still Running
-        private bool TickChildren()
+        private bool TickChildren(ref RunnerObserver observer)
         {
             bool anyRunning = false;
 
@@ -126,7 +126,10 @@ namespace BehaviorTree
                 if (_childStates[i] != BHState.Running)
                     continue;
 
-                _childStates[i] = Children[i].Tick();
+                observer.SetChildIndex(i);
+                observer.Descend();
+                _childStates[i] = Children[i].Tick(ref observer);
+                observer.Ascend();
 
                 if (_childStates[i] == BHState.Running)
                     anyRunning = true;

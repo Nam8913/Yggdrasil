@@ -5,6 +5,6 @@ namespace BehaviorTree
         BHState CurrentState { get; }
         bool IsRunning { get; }
         void Reset();
-        BHState Tick();
+        BHState Tick(ref RunnerObserver observer);
     }
 }

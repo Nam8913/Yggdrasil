@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -16,6 +17,11 @@ namespace BehaviorTree.Performance
 
         private readonly List<RegisteredNPC> _npcs = new List<RegisteredNPC>();
         private Transform _playerTransform;
+
+        // Cached eval counts per interval — allocated once, reused every frame
+        // Đánh số lần evaluate theo interval — cấp phát 1 lần, dùng lại mỗi frame
+        private int[] _evalCounts;
+        private List<int> _runnerRemove = new List<int>();
 
         private struct RegisteredNPC
         {
@@ -36,6 +42,9 @@ namespace BehaviorTree.Performance
             }
             Instance = this;
             DontDestroyOnLoad(gameObject);
+
+            // Init eval counts once — no GC allocation per frame
+            _evalCounts = new int[_evalIntervals.Count];
         }
 
         public void SetPlayerTransform(Transform player)
@@ -62,10 +71,10 @@ namespace BehaviorTree.Performance
                 if (_npcs[i].Runner == runner)
                 {
                     _npcs.RemoveAt(i);
+                    runner.enabled = true; // Enable the runner when unregistered
                     return;
                 }
             }
-            runner.enabled = true; // Enable the runner when unregistered
         }
 
         private void Update()
@@ -79,30 +88,33 @@ namespace BehaviorTree.Performance
             // Sort theo PreviousEvalTime giảm dần: NPC chờ lâu nhất được evaluate trước
             _npcs.Sort((a, b) => b.PreviousEvalTime.CompareTo(a.PreviousEvalTime));
 
-            Dictionary<RangeInterval, int> evalsPerInterval = new Dictionary<RangeInterval, int>();
-            foreach (var interval in _evalIntervals)
-            {
-                evalsPerInterval.Add(interval, 0);
-            }
+            // Reset eval counts — Array.Clear is cheaper than new Dictionary()
+            // Reset số lần evaluate — Array.Clear rẻ hơn new Dictionary()
+            Array.Clear(_evalCounts, 0, _evalCounts.Length);
 
             for (int i = 0; i < _npcs.Count; i++)
             {
                 var npc = _npcs[i];
-                if (!npc.IsActive || npc.Runner == null || !npc.Runner.IsInitialized || npc.Runner.gameObject == null)
+                if (npc.Runner == null || npc.Runner.gameObject == null)
+                {
+                    RemoveInvalidRunner(npc, i);
+                    continue;
+                }
+                if (!npc.IsActive || !npc.Runner.IsInitialized || npc.Runner.gameObject == null)
                     continue;
 
                 bool evaluated = false;
                 float distance = Vector3.Distance(npc.Runner.transform.position, playerPos);
-                RangeInterval requiredEvalInterval = GetRangeIntervalForDistance(distance);
+                int intervalIndex = GetIntervalIndexForDistance(distance);
+                RangeInterval requiredEvalInterval = _evalIntervals[intervalIndex];
 
-                if (evalsPerInterval.TryGetValue(requiredEvalInterval, out int evalCount)
-                    && evalCount < requiredEvalInterval.MaxEvalsPerFrame
+                if (_evalCounts[intervalIndex] < requiredEvalInterval.MaxEvalsPerFrame
                     && npc.PreviousEvalTime >= requiredEvalInterval.Interval)
                 {
                     npc.Runner.Evaluate();
                     npc.PreviousEvalTime = 0;
                     npc.CurrentEvalInterval = requiredEvalInterval.Interval;
-                    evalsPerInterval[requiredEvalInterval]++;
+                    _evalCounts[intervalIndex]++;
                     evaluated = true;
                 }
 
@@ -113,16 +125,41 @@ namespace BehaviorTree.Performance
 
                 npc.Runner.Execute();
             }
+
+            if (_runnerRemove.Count > 0)
+            {
+                // Remove invalid runners
+                foreach (int index in _runnerRemove)
+                {
+                    RegisteredNPC registeredNPC = _npcs[index];
+                    _npcs.RemoveAt(index);
+                    if(registeredNPC.Runner != null)
+                    {
+                        registeredNPC.Runner = null; // Clear reference to avoid memory leaks
+                    }
+                    
+                }
+                _runnerRemove.Clear();
+            }
+           
+        }
+        
+        private int GetIntervalIndexForDistance(float distance)
+        {
+            for (int i = 0; i < _evalIntervals.Count; i++)
+            {
+                if (distance < _evalIntervals[i].Range)
+                    return i;
+            }
+            return _evalIntervals.Count - 1;
         }
 
-        private RangeInterval GetRangeIntervalForDistance(float distance)
+        private void RemoveInvalidRunner(RegisteredNPC runner , int index)
         {
-            foreach (var interval in _evalIntervals)
+            if (runner.Runner == null || runner.Runner.gameObject == null)
             {
-                if (distance < interval.Range)
-                    return interval;
+                _runnerRemove.Add(index);
             }
-            return new RangeInterval(float.MaxValue, -1f, int.MaxValue);
         }
 
         public int RegisteredCount => _npcs.Count;

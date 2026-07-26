@@ -5,10 +5,11 @@ A modular, two-phase behavior tree framework for Unity 6, designed for scalable 
 ## Features
 
 - **Two-Phase Architecture** — Separate `Evaluate()` (logic) and `Execute()` (Unity API) phases for future thread safety
-- **10 Composite Nodes** — Sequence, Selector, Random variants, Parallel, NAND, NOR, XOR, XNOR
-- **14 Decorator Nodes** — Inverter, Cooldown, Repeater, TimeLimit, Wait, Guard, Succeeder, Failer, and more
+- **9 Composite Nodes** — Sequence, Selector, RandomComposite, Parallel, NAND, NOR, XOR, XNOR
+- **14 Decorator Nodes** — Inverter, Cooldown, Repeater, TimeLimit, Wait, WaitUntil, Guard, Succeeder, Failer, and more
 - **14 Condition Nodes** — Blackboard comparisons (int, float, bool, string, generic), GameObject checks (tag, component, layer, active)
 - **5 Action Nodes** — Wander, MoveTo, RotateTo, Stop, SetVelocity
+- **RunnerObserver** — Tree traversal tracking for debugging and visualization
 - **Distance-Based Scheduling** — BTScheduler throttles NPC evaluation based on distance to player
 - **Thread-Safe Blackboard** — Key-value store with observer pattern and type-safe `BBKey<T>`
 - **Fluent Builder API** — Construct trees with readable, chainable syntax
@@ -42,7 +43,7 @@ runner.Initialize(tree);
 ```
 Assets/Yggdrasil/BehaviorTree/
 ├── Core/                  — NodeBT, BehaviorTreeRunner, BehaviorTreeBuilder, BHState
-├── Composites/            — Sequence, Selector, Parallel, Random*, NAND, NOR, XOR, XNOR
+├── Composites/            — Sequence, Selector, RandomComposite, Parallel, NAND, NOR, XOR, XNOR
 ├── Decorators/            — Inverter, Cooldown, Repeater, Wait, Guard, Succeeder, Failer, etc.
 ├── Condition/             — BBCompare*, GOCheck*, ConditionNode base class
 ├── AIActions/             — Wander, MoveTo, RotateTo, Stop, SetVelocity
@@ -56,17 +57,16 @@ Assets/Yggdrasil/BehaviorTree/
 
 ### Composites
 
-| Node | Logic | Description |
-|------|-------|-------------|
-| `Sequence` | AND | All children must succeed |
-| `Selector` | OR | Any child can succeed |
-| `RandomSequence` | AND (shuffled) | Random order, all must succeed |
-| `RandomSelector` | OR (shuffled) | Random order, any can succeed |
-| `Parallel` | Configurable | All children tick simultaneously |
-| `Nand` | NAND | Fails only if ALL children succeed |
-| `Nor` | NOR | Succeeds only if ALL children fail |
-| `Xor` | XOR | Succeeds if children disagree (mix of success/failure) |
-| `Xnor` | XNOR | Succeeds if all children agree (all succeed or all fail) |
+| Node | Logic | Early-Exit Field | Description |
+|------|-------|-----------------|-------------|
+| `Sequence` | AND | `BreakOnFirstFailure` | All children must succeed |
+| `Selector` | OR | `BreakOnFirstSuccess` | Any child can succeed |
+| `RandomComposite` | Configurable | `BreakOnFirstMatch` | Shuffled order + logic gate |
+| `Parallel` | Configurable | — | All children tick simultaneously |
+| `Nand` | NAND | `BreakOnFirstFailure` | Fails only if ALL children succeed |
+| `Nor` | NOR | `BreakOnFirstSuccess` | Succeeds only if ALL children fail |
+| `Xor` | XOR | `BreakOnMixed` | Succeeds if children disagree |
+| `Xnor` | XNOR | `BreakOnMixed` | Succeeds if all children agree |
 
 ### Decorators
 
@@ -113,6 +113,17 @@ Assets/Yggdrasil/BehaviorTree/
 | `Stop` | Halt all movement |
 | `SetVelocity` | Set Rigidbody2D velocity directly |
 
+## RunnerObserver
+
+Tracks tree traversal for debugging:
+
+```csharp
+var observer = runner.Observer;
+Debug.Log($"Path: {observer.GetPathString()}");  // "/0.1.2"
+Debug.Log($"Depth: {observer.LastDepth}");        // 2
+Debug.Log($"Visits: {observer.Visits.Count}");    // nodes completed
+```
+
 ## Performance
 
 The `BTScheduler` automatically throttles NPC evaluation based on distance to the player:
@@ -123,7 +134,7 @@ The `BTScheduler` automatically throttles NPC evaluation based on distance to th
 | < 50m | Every 0.2s |
 | >= 50m | Never evaluated |
 
-NPCs are sorted by wait time each frame for fair round-robin scheduling.
+NPCs are sorted by wait time each frame for fair round-robin scheduling. Uses `int[]` array for eval counts (zero GC allocation per frame).
 
 ## Requirements
 

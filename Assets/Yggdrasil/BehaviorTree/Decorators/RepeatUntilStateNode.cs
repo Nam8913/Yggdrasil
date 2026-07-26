@@ -24,15 +24,17 @@ namespace BehaviorTree
         // Trạng thái mong muốn dừng sự lặp lại
         public BHState Value { get; set; } = BHState.Success;
 
-        protected override BHState OnUpdate()
+        protected override BHState OnUpdate(ref RunnerObserver observer)
         {
             if (Child == null)
                 return BHState.Failure;
 
-            var childState = Child.Tick();
-
+            observer.Descend();
+            var childState = Child.Tick(ref observer);
+            observer.Ascend();
             // Child still running — wait
             // Con vẫn đang chạy — chờ
+
             if (childState == BHState.Running)
                 return BHState.Running;
 
@@ -47,12 +49,14 @@ namespace BehaviorTree
             return BHState.Running;
         }
 
-        protected override BHState OnEvaluate()
+        protected override BHState OnEvaluate(ref RunnerObserver observer)
         {
             if (Child == null)
                 return BHState.Failure;
 
-            var childState = Child.Evaluate();
+            observer.Descend();
+            var childState = Child.Evaluate(ref observer);
+            observer.Ascend();
 
             if (childState == BHState.Running)
                 return BHState.Running;

@@ -24,67 +24,48 @@ namespace BehaviorTree
         // Nếu true, trả về Failure ngay khi tìm thấy bất đồng (success + failure)
         public bool BreakOnMixed { get; set; } = true;
 
-        protected override BHState OnUpdate()
+        protected override BHState OnUpdate(ref RunnerObserver observer)
         {
-            bool hasSuccess = false;
-            bool hasFailure = false;
-
+            bool hasSuccess = false, hasFailure = false;
             while (CurrentChildIndex < Children.Count)
             {
-                var state = Children[CurrentChildIndex].Tick();
+                observer.SetChildIndex(CurrentChildIndex);
+                observer.Descend();
+                var state = Children[CurrentChildIndex].Tick(ref observer);
+                observer.Ascend();
 
-                if (state == BHState.Running)
-                    return BHState.Running;
-
-                if (state == BHState.Success)
-                    hasSuccess = true;
-
-                if (state == BHState.Failure)
-                    hasFailure = true;
-
+                if (state == BHState.Running) return BHState.Running;
+                if (state == BHState.Success) hasSuccess = true;
+                if (state == BHState.Failure) hasFailure = true;
                 CurrentChildIndex++;
-
-                if (BreakOnMixed && hasSuccess && hasFailure)
-                    break;
+                if (BreakOnMixed && hasSuccess && hasFailure) break;
             }
-
             CurrentChildIndex = 0;
             return (hasSuccess && hasFailure) ? BHState.Failure : BHState.Success;
         }
 
-        protected override BHState OnEvaluate()
+        protected override BHState OnEvaluate(ref RunnerObserver observer)
         {
-            bool hasSuccess = false;
-            bool hasFailure = false;
-
+            bool hasSuccess = false, hasFailure = false;
             while (CurrentChildIndex < Children.Count)
             {
-                var state = Children[CurrentChildIndex].Evaluate();
-
-                if (state == BHState.Running)
-                    return BHState.Running;
-
-                if (state == BHState.Success)
-                    hasSuccess = true;
-
-                if (state == BHState.Failure)
-                    hasFailure = true;
-
+                observer.SetChildIndex(CurrentChildIndex);
+                observer.Descend();
+                var state = Children[CurrentChildIndex].Evaluate(ref observer);
+                observer.Ascend();
+                if (state == BHState.Running) return BHState.Running;
+                if (state == BHState.Success) hasSuccess = true;
+                if (state == BHState.Failure) hasFailure = true;
                 CurrentChildIndex++;
-
-                if (BreakOnMixed && hasSuccess && hasFailure)
-                    break;
+                if (BreakOnMixed && hasSuccess && hasFailure) break;
             }
-
             CurrentChildIndex = 0;
             return (hasSuccess && hasFailure) ? BHState.Failure : BHState.Success;
         }
 
         protected override BHState OnExecute()
         {
-            if (CurrentChildIndex < Children.Count)
-                return Children[CurrentChildIndex].Execute();
-
+            if (CurrentChildIndex < Children.Count) return Children[CurrentChildIndex].Execute();
             return BHState.Success;
         }
     }

@@ -19,25 +19,20 @@ namespace BehaviorTree
         // Maximum number of repeats. -1 = infinite.
         // Số lần lặp tối đa. -1 = vô hạn.
         public int MaxRepeats { get; set; } = -1;
-
         private int _count;
 
-        protected override void OnEnter()
-        {
-            _count = 0;
-        }
+        protected override void OnEnter() { _count = 0; }
 
-        protected override BHState OnUpdate()
+        protected override BHState OnUpdate(ref RunnerObserver observer)
         {
-            var state = Child.Tick();
+            observer.Descend();
+            var state = Child.Tick(ref observer);
+            observer.Ascend();
 
-            if (state == BHState.Running)
-                return BHState.Running;
+            if (state == BHState.Running) return BHState.Running;
 
             _count++;
-
-            if (MaxRepeats > 0 && _count >= MaxRepeats)
-                return BHState.Success;
+            if (MaxRepeats > 0 && _count >= MaxRepeats) return BHState.Success;
 
             // Reset child for next repeat
             // Reset con để lặp tiếp
@@ -45,17 +40,16 @@ namespace BehaviorTree
             return BHState.Running;
         }
 
-        protected override BHState OnEvaluate()
+        protected override BHState OnEvaluate(ref RunnerObserver observer)
         {
-            var state = Child.Evaluate();
+            observer.Descend();
+            var state = Child.Evaluate(ref observer);
+            observer.Ascend();
 
-            if (state == BHState.Running)
-                return BHState.Running;
+            if (state == BHState.Running) return BHState.Running;
 
             _count++;
-
-            if (MaxRepeats > 0 && _count >= MaxRepeats)
-                return BHState.Success;
+            if (MaxRepeats > 0 && _count >= MaxRepeats) return BHState.Success;
 
             Child.Reset();
             return BHState.Running;

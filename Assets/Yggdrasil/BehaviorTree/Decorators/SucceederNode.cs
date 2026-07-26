@@ -14,15 +14,19 @@ namespace BehaviorTree
     /// </summary>
     public class SucceederNode : DecoratorNode
     {
-        protected override BHState OnUpdate()
+        protected override BHState OnUpdate(ref RunnerObserver observer)
         {
-            Child?.Tick();
+            observer.Descend();
+            Child?.Tick(ref observer);
+            observer.Ascend();
             return BHState.Success;
         }
 
-        protected override BHState OnEvaluate()
+        protected override BHState OnEvaluate(ref RunnerObserver observer)
         {
-            Child?.Evaluate();
+            observer.Descend();
+            Child?.Evaluate(ref observer);
+            observer.Ascend();
             return BHState.Success;
         }
 

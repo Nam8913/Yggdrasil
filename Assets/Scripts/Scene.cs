@@ -130,7 +130,9 @@ public class Scene : MonoBehaviour
             .Sequence()
                 .Action(new WanderAction(GO.transform))
                 .Wait(1f)
-                    .Action(new LookAroundAction(GO.transform))
+                    .Action(new WanderAction(GO.transform))
+                .End()
+                .Wait(2f)
                 .End()
             .End()
             
@@ -159,7 +161,7 @@ public class Scene : MonoBehaviour
             Debug.Log($"[{_creature.name}] Finished looking around.");
         }
 
-        protected override BHState OnEvaluate()
+        protected override BHState OnEvaluate(ref RunnerObserver observer)
         {
             _elapsed += Time.deltaTime;
             return _elapsed >= _lookDuration ? BHState.Success : BHState.Running;
@@ -176,6 +178,6 @@ public class Scene : MonoBehaviour
             return EvaluatedState;
         }
 
-        protected override BHState OnUpdate() { OnEvaluate(); return OnExecute(); }
+        protected override BHState OnUpdate(ref RunnerObserver observer) { OnEvaluate(ref observer); return OnExecute(); }
     }
 }

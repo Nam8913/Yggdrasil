@@ -17,7 +17,6 @@ namespace BehaviorTree
         // Interval between service executions (in seconds)
         // Khoảng thời gian giữa các lần thực thi dịch vụ (tính bằng giây)
         public float ServiceInterval { get; set; } = 0.5f;
-
         private float _lastServiceTime;
 
         protected override void OnEnter()
@@ -26,7 +25,7 @@ namespace BehaviorTree
             ExecuteService();
         }
 
-        protected override BHState OnUpdate()
+        protected override BHState OnUpdate(ref RunnerObserver observer)
         {
             if (Time.time - _lastServiceTime >= ServiceInterval)
             {
@@ -34,10 +33,13 @@ namespace BehaviorTree
                 _lastServiceTime = Time.time;
             }
 
-            return Child.Tick();
+            observer.Descend();
+            var state = Child.Tick(ref observer);
+            observer.Ascend();
+            return state;
         }
 
-        protected override BHState OnEvaluate()
+        protected override BHState OnEvaluate(ref RunnerObserver observer)
         {
             if (Time.time - _lastServiceTime >= ServiceInterval)
             {
@@ -45,7 +47,10 @@ namespace BehaviorTree
                 _lastServiceTime = Time.time;
             }
 
-            return Child.Evaluate();
+            observer.Descend();
+            var state = Child.Evaluate(ref observer);
+            observer.Ascend();
+            return state;
         }
 
         protected override BHState OnExecute()

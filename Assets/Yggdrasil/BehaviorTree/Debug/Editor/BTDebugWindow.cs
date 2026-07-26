@@ -10,6 +10,7 @@ namespace BehaviorTree.Debug.Editor
         private Vector2 _treeScrollPos;
         private Vector2 _blackboardScrollPos;
         private Vector2 _logScrollPos;
+        private Vector2 _observerScrollPos;
         private BehaviorTreeRunner _selectedRunner;
         private int _selectedTab;
 
@@ -53,7 +54,7 @@ namespace BehaviorTree.Debug.Editor
                 return;
             }
 
-            _selectedTab = GUILayout.Toolbar(_selectedTab, new[] { "Tree", "Blackboard", "Log", "Stats" });
+            _selectedTab = GUILayout.Toolbar(_selectedTab, new[] { "Tree", "Blackboard", "Log", "Stats", "Observer" });
 
             switch (_selectedTab)
             {
@@ -61,6 +62,7 @@ namespace BehaviorTree.Debug.Editor
                 case 1: DrawBlackboardView(); break;
                 case 2: DrawLogView(); break;
                 case 3: DrawStatsView(); break;
+                case 4: DrawObserverView(); break;
             }
         }
 
@@ -205,6 +207,54 @@ namespace BehaviorTree.Debug.Editor
                 EditorGUILayout.LabelField($"Interrupts: {kvp.Value.InterruptCount}");
                 EditorGUI.indentLevel--;
             }
+        }
+
+        private void DrawObserverView()
+        {
+            EditorGUILayout.LabelField("Runner Observer", EditorStyles.boldLabel);
+
+            var observer = _selectedRunner.Observer;
+
+            // Current path
+            EditorGUILayout.LabelField($"Path: {observer.GetPathString()}", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField($"Depth: {observer.LastDepth}");
+            EditorGUILayout.Space();
+
+            // Visits
+            EditorGUILayout.LabelField($"Total Visits: {observer.Visits.Count}");
+            EditorGUILayout.Space();
+
+            _observerScrollPos = EditorGUILayout.BeginScrollView(_observerScrollPos);
+
+            for (int i = 0; i < observer.Visits.Count; i++)
+            {
+                var visit = observer.Visits[i];
+                if (visit.Node == null) continue;
+
+                string indent = new string(' ', visit.Depth * 2);
+                string nodeName = visit.Node.GetType().Name;
+                string stateStr = visit.Result.ToString();
+                string duration = visit.DurationMs > 0 ? $" [{visit.DurationMs:F2}ms]" : "";
+
+                // Color based on result
+                GUIStyle style = new GUIStyle(EditorStyles.miniLabel);
+                switch (visit.Result)
+                {
+                    case BHState.Running:
+                        style.normal.textColor = Color.yellow;
+                        break;
+                    case BHState.Success:
+                        style.normal.textColor = Color.green;
+                        break;
+                    case BHState.Failure:
+                        style.normal.textColor = Color.red;
+                        break;
+                }
+
+                EditorGUILayout.LabelField($"{indent}[{i}] {nodeName}: {stateStr}{duration}", style);
+            }
+
+            EditorGUILayout.EndScrollView();
         }
 
         private void OnInspectorUpdate()

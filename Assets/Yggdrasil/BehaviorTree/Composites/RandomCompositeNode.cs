@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 
 namespace BehaviorTree
@@ -86,20 +85,18 @@ namespace BehaviorTree
 
         // ==================== OnUpdate (Legacy) ====================
 
-        protected override BHState OnUpdate()
+        protected override BHState OnUpdate(ref RunnerObserver observer)
         {
             if (TickMode == RandomTickMode.Parallel)
-                return TickParallel(node => node.Tick());
-            return TickSequential(node => node.Tick());
+                return TickParallel(ref observer, useEvaluate: false);
+            return TickSequential(ref observer, useEvaluate: false);
         }
 
-        // ==================== OnEvaluate (Two-phase) ====================
-
-        protected override BHState OnEvaluate()
+        protected override BHState OnEvaluate(ref RunnerObserver observer)
         {
             if (TickMode == RandomTickMode.Parallel)
-                return TickParallel(node => node.Evaluate());
-            return TickSequential(node => node.Evaluate());
+                return TickParallel(ref observer, useEvaluate: true);
+            return TickSequential(ref observer, useEvaluate: true);
         }
 
         // ==================== OnExecute ====================
@@ -130,11 +127,15 @@ namespace BehaviorTree
 
         // ==================== Sequential Mode ====================
 
-        private BHState TickSequential(Func<NodeBT, BHState> tickFunc)
+        private BHState TickSequential(ref RunnerObserver observer, bool useEvaluate)
         {
             while (CurrentChildIndex < _shuffledOrder.Count)
             {
-                var state = tickFunc(Children[_shuffledOrder[CurrentChildIndex]]);
+                observer.SetChildIndex(CurrentChildIndex);
+                observer.Descend();
+                var child = Children[_shuffledOrder[CurrentChildIndex]];
+                var state = useEvaluate ? child.Evaluate(ref observer) : child.Tick(ref observer);
+                observer.Ascend();
 
                 if (state == BHState.Running)
                     return BHState.Running;
@@ -175,7 +176,7 @@ namespace BehaviorTree
 
         // ==================== Parallel Mode ====================
 
-        private BHState TickParallel(Func<NodeBT, BHState> tickFunc)
+        private BHState TickParallel(ref RunnerObserver observer, bool useEvaluate)
         {
             _childStates.Clear();
             for (int i = 0; i < Children.Count; i++)
@@ -187,7 +188,11 @@ namespace BehaviorTree
                 if (_childStates[i] != BHState.Running)
                     continue;
 
-                _childStates[i] = tickFunc(Children[_shuffledOrder[i]]);
+                observer.SetChildIndex(i);
+                observer.Descend();
+                var child = Children[_shuffledOrder[i]];
+                _childStates[i] = useEvaluate ? child.Evaluate(ref observer) : child.Tick(ref observer);
+                observer.Ascend();
 
                 if (_childStates[i] == BHState.Running)
                     anyRunning = true;

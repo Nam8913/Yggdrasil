@@ -31,7 +31,7 @@ namespace BehaviorTree
                 _targetPosition = Blackboard.Get(BBKeys.MoveTarget);
         }
 
-        protected override BHState OnUpdate()
+        protected override BHState OnUpdate(ref RunnerObserver observer)
         {
             return Rotate();
         }

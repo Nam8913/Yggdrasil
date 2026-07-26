@@ -26,19 +26,19 @@ namespace BehaviorTree
         // Điều kiện dừng lặp lại khi đúng
         public Func<bool> Condition { get; set; }
 
-        protected override BHState OnUpdate()
+        protected override BHState OnUpdate(ref RunnerObserver observer)
         {
-            if (Child == null)
-                return BHState.Failure;
+            if (Child == null) return BHState.Failure;
 
+            observer.Descend();
             // Tick the child first — it may be doing work each frame
             // Tick con trước — nó có thể đang thực hiện công việc mỗi frame
-            var childState = Child.Tick();
+            var childState = Child.Tick(ref observer);
+            observer.Ascend();
 
             // If child is still running, we're not done yet
             // Nếu con vẫn đang chạy, chưa xong
-            if (childState == BHState.Running)
-                return BHState.Running;
+            if (childState == BHState.Running) return BHState.Running;
 
             // Child completed (Success or Failure) — check the exit condition
             // Con hoàn thành (Success hoặc Failure) — kiểm tra điều kiện thoát
@@ -51,12 +51,14 @@ namespace BehaviorTree
             return BHState.Running;
         }
 
-        protected override BHState OnEvaluate()
+        protected override BHState OnEvaluate(ref RunnerObserver observer)
         {
             if (Child == null)
                 return BHState.Failure;
 
-            var childState = Child.Evaluate();
+            observer.Descend();
+            var childState = Child.Evaluate(ref observer);
+            observer.Ascend();
 
             if (childState == BHState.Running)
                 return BHState.Running;

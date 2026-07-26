@@ -15,13 +15,16 @@ namespace BehaviorTree
         // Nếu true, trả về Failure ngay khi một con thất bại
         public bool BreakOnFirstFailure { get; set; } = true;
 
-        protected override BHState OnUpdate()
+        protected override BHState OnUpdate(ref RunnerObserver observer)
         {
             bool anyFailed = false;
 
             while (CurrentChildIndex < Children.Count)
             {
-                var state = Children[CurrentChildIndex].Tick();
+                observer.SetChildIndex(CurrentChildIndex);
+                observer.Descend();
+                var state = Children[CurrentChildIndex].Tick(ref observer);
+                observer.Ascend();
 
                 if (state == BHState.Running)
                     return BHState.Running;
@@ -43,17 +46,17 @@ namespace BehaviorTree
             return anyFailed ? BHState.Failure : BHState.Success;
         }
 
-        protected override BHState OnEvaluate()
+        protected override BHState OnEvaluate(ref RunnerObserver observer)
         {
             bool anyFailed = false;
-
             while (CurrentChildIndex < Children.Count)
             {
-                var state = Children[CurrentChildIndex].Evaluate();
+                observer.SetChildIndex(CurrentChildIndex);
+                observer.Descend();
+                var state = Children[CurrentChildIndex].Evaluate(ref observer);
+                observer.Ascend();
 
-                if (state == BHState.Running)
-                    return BHState.Running;
-
+                if (state == BHState.Running) return BHState.Running;
                 if (state == BHState.Failure)
                 {
                     anyFailed = true;
@@ -63,10 +66,8 @@ namespace BehaviorTree
                         return BHState.Failure;
                     }
                 }
-
                 CurrentChildIndex++;
             }
-
             CurrentChildIndex = 0;
             return anyFailed ? BHState.Failure : BHState.Success;
         }
@@ -75,7 +76,6 @@ namespace BehaviorTree
         {
             if (CurrentChildIndex < Children.Count)
                 return Children[CurrentChildIndex].Execute();
-
             return BHState.Success;
         }
     }

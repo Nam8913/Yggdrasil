@@ -24,67 +24,48 @@ namespace BehaviorTree
         // Nếu true, ngừng tick các con còn lại khi tìm thấy thành công đầu tiên
         public bool BreakOnFirstSuccess { get; set; } = true;
 
-        protected override BHState OnUpdate()
+        protected override BHState OnUpdate(ref RunnerObserver observer)
         {
             bool anySucceeded = false;
-
             while (CurrentChildIndex < Children.Count)
             {
-                var state = Children[CurrentChildIndex].Tick();
+                observer.SetChildIndex(CurrentChildIndex);
+                observer.Descend();
+                var state = Children[CurrentChildIndex].Tick(ref observer);
+                observer.Ascend();
 
-                if (state == BHState.Running)
-                    return BHState.Running;
-
+                if (state == BHState.Running) return BHState.Running;
                 if (state == BHState.Success)
                 {
                     anySucceeded = true;
-                    if (BreakOnFirstSuccess)
-                    {
-                        CurrentChildIndex = 0;
-                        return BHState.Failure;
-                    }
+                    if (BreakOnFirstSuccess) { CurrentChildIndex = 0; return BHState.Failure; }
                 }
-
                 CurrentChildIndex++;
             }
-
             CurrentChildIndex = 0;
             return anySucceeded ? BHState.Failure : BHState.Success;
         }
 
-        protected override BHState OnEvaluate()
+        protected override BHState OnEvaluate(ref RunnerObserver observer)
         {
             bool anySucceeded = false;
-
             while (CurrentChildIndex < Children.Count)
             {
-                var state = Children[CurrentChildIndex].Evaluate();
-
-                if (state == BHState.Running)
-                    return BHState.Running;
-
-                if (state == BHState.Success)
-                {
-                    anySucceeded = true;
-                    if (BreakOnFirstSuccess)
-                    {
-                        CurrentChildIndex = 0;
-                        return BHState.Failure;
-                    }
-                }
-
+                observer.SetChildIndex(CurrentChildIndex);
+                observer.Descend();
+                var state = Children[CurrentChildIndex].Evaluate(ref observer);
+                observer.Ascend();
+                if (state == BHState.Running) return BHState.Running;
+                if (state == BHState.Success) anySucceeded = true;
                 CurrentChildIndex++;
             }
-
             CurrentChildIndex = 0;
             return anySucceeded ? BHState.Failure : BHState.Success;
         }
 
         protected override BHState OnExecute()
         {
-            if (CurrentChildIndex < Children.Count)
-                return Children[CurrentChildIndex].Execute();
-
+            if (CurrentChildIndex < Children.Count) return Children[CurrentChildIndex].Execute();
             return BHState.Failure;
         }
     }
