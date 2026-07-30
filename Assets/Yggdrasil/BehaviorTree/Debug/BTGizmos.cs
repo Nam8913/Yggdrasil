@@ -18,10 +18,10 @@ namespace BehaviorTree.Debug
 
         private void Awake()
         {
-            _runner = GetComponent<BehaviorTreeRunner>();
+            _runner = this.gameObject.GetComponent<BehaviorTreeRunner>();
         }
 
-        private void OnDrawGizmos()
+        private void OnDrawGizmosSelected()
         {
             if (_runner == null || !_runner.IsInitialized)
                 return;
@@ -42,7 +42,7 @@ namespace BehaviorTree.Debug
 
             if (_showSensorRanges)
             {
-                // DrawSensorRanges();
+                DrawSensorRanges();
             }
         }
 

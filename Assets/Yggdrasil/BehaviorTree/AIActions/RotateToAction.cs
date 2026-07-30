@@ -20,6 +20,7 @@ namespace BehaviorTree
         public float AngleThreshold { get; set; } = 5f;
 
         private Vector3 _targetPosition;
+        private bool failedToGetTarget = false;
 
         protected override void OnEnter()
         {
@@ -29,6 +30,10 @@ namespace BehaviorTree
                 _targetPosition = Blackboard.Get(BBKeys.LookTarget);
             else if (Blackboard.Has(BBKeys.MoveTarget))
                 _targetPosition = Blackboard.Get(BBKeys.MoveTarget);
+            else if (Blackboard.Has(BBKeys.ThreatTarget))
+                _targetPosition = Blackboard.Get(BBKeys.ThreatTarget).position;
+            else
+               failedToGetTarget = true;
         }
 
         protected override BHState OnUpdate(ref RunnerObserver observer)
@@ -36,15 +41,85 @@ namespace BehaviorTree
             return Rotate();
         }
 
+        protected override BHState OnEvaluate(ref RunnerObserver observer)
+        {
+            var self = Blackboard.Get(BBKeys.Self);
+            if (self == null)
+            {   
+                UnityEngine.Debug.LogWarning($"[{self?.name ?? "Unknown"}] RotateToAction: No target to rotate to.");
+                return BHState.Failure;
+            }
+
+            //lỗi tiềm năng: lỗi WanderAction không set MoveTarget khi Evaluate. Hiện tại nên tạm thời trả về Running
+            if(failedToGetTarget)
+            {
+                return BHState.Running;
+            }
+
+            Vector2 direction = (Vector2)(_targetPosition - self.transform.position);
+            if (direction.sqrMagnitude < 0.001f)
+                return BHState.Success; 
+
+            float targetAngle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+            float currentAngle = self.transform.eulerAngles.z;
+            float angle = Mathf.DeltaAngle(currentAngle, targetAngle);
+
+            if (Mathf.Abs(angle) <= AngleThreshold)
+                return BHState.Success;
+            return BHState.Running; // Always running, no condition to stop
+        }
+
         protected override BHState OnExecute()
         {
-            return Rotate();
+            if(CurrentState != BHState.Running)
+            {
+                return CurrentState;
+            }
+
+            var self = Blackboard.Get(BBKeys.Self);
+            if (self == null)
+            {   
+                UnityEngine.Debug.LogWarning($"[{self?.name ?? "Unknown"}] RotateToAction: No target to rotate to.");
+                return BHState.Failure;
+            }
+            // TODO: hiện tại có trường hợp BTScheduler gọi OnExecute trước OnEnter, dẫn đến _targetPosition chưa được set. Cần fix lại.
+            // Dùng tạm fallback để lấy target từ Blackboard nếu OnEnter chưa được gọi.
+            if(failedToGetTarget)
+            {
+                if (Blackboard.Has(BBKeys.LookTarget))
+                _targetPosition = Blackboard.Get(BBKeys.LookTarget);
+                else if (Blackboard.Has(BBKeys.MoveTarget))
+                _targetPosition = Blackboard.Get(BBKeys.MoveTarget);
+                else if (Blackboard.Has(BBKeys.ThreatTarget))
+                _targetPosition = Blackboard.Get(BBKeys.ThreatTarget).position;
+                else
+                {
+                    return BHState.Failure;
+                }
+            }
+
+            Vector2 direction = (Vector2)(_targetPosition - self.transform.position);
+            if (direction.sqrMagnitude < 0.001f)
+                return BHState.Success;
+
+            float targetAngle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+            float currentAngle = self.transform.eulerAngles.z;
+            float angle = Mathf.DeltaAngle(currentAngle, targetAngle);
+
+            if (Mathf.Abs(angle) <= AngleThreshold)
+                return BHState.Success;
+
+            float step = TurnSpeed * Time.deltaTime;
+            float newAngle = Mathf.MoveTowards(currentAngle, currentAngle + angle, step);
+            self.transform.rotation = Quaternion.Euler(0f, 0f, newAngle);
+
+            return BHState.Running;
         }
 
         private BHState Rotate()
         {
             var self = Blackboard.Get(BBKeys.Self);
-            if (self == null)
+            if (self == null || failedToGetTarget)
                 return BHState.Failure;
 
             Vector2 direction = (Vector2)(_targetPosition - self.transform.position);

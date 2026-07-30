@@ -250,7 +250,6 @@ namespace BehaviorTree
                 UnityEngine.Debug.LogWarning($"[BehaviorTreeBuilder] Build() called with {_nodeStack.Count - 1} unclosed nodes. Missing End() calls.");
             }
 
-            _root.Initialize(_blackboard);
             return _root;
         }
 
@@ -266,8 +265,7 @@ namespace BehaviorTree
             {
                 UnityEngine.Debug.LogWarning($"[BehaviorTreeBuilder] BuildWithBlackboard() called with {_nodeStack.Count - 1} unclosed nodes. Missing End() calls.");
             }
-
-            _root.Initialize(_blackboard);
+            
             return (_root, _blackboard);
         }
 

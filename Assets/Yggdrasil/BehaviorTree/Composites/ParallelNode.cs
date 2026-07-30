@@ -88,7 +88,7 @@ namespace BehaviorTree
         protected override BHState OnEvaluate(ref RunnerObserver observer)
         {
             EnsureChildStates();
-            if (TickChildren(ref observer)) return BHState.Running;
+            if (EvaluateChildren(ref observer)) return BHState.Running;
             return EvaluatePolicy();
         }
 
@@ -114,8 +114,32 @@ namespace BehaviorTree
             return EvaluatePolicy();
         }
 
-        // Tick all children that are still Running
-        // Tick tất cả con đang Running
+        // Evaluate all children that are still Running (two-phase)
+        // Đánh giá tất cả con đang Running (hai phase)
+        // Returns true if any child is still Running
+        private bool EvaluateChildren(ref RunnerObserver observer)
+        {
+            bool anyRunning = false;
+
+            for (int i = 0; i < Children.Count; i++)
+            {
+                if (_childStates[i] != BHState.Running)
+                    continue;
+
+                observer.SetChildIndex(i);
+                observer.Descend();
+                _childStates[i] = Children[i].Evaluate(ref observer);
+                observer.Ascend();
+
+                if (_childStates[i] == BHState.Running)
+                    anyRunning = true;
+            }
+
+            return anyRunning;
+        }
+
+        // Tick all children that are still Running (single-phase legacy)
+        // Tick tất cả con đang Running (đơn phase cũ)
         // Returns true if any child is still Running
         private bool TickChildren(ref RunnerObserver observer)
         {

@@ -17,6 +17,7 @@ namespace BehaviorTree
         private RunnerObserver runnerObserver;
         private float _timeSinceLastTick;
         private bool _needsReset;
+        private bool warmUp = false;
 
         public void Initialize(RootNode root, Blackboard blackboard = null)
         {
@@ -28,10 +29,27 @@ namespace BehaviorTree
             LastEvaluatedState = BHState.Running;
             _timeSinceLastTick = 0f;
             _needsReset = false;
+            warmUp = true;
             IsInitialized = true;
+            
 
             runnerObserver = new RunnerObserver(Root);
             Blackboard.Set(BBKeys.Self, this.gameObject);
+        }
+
+        private void Recursive(NodeBT node, System.Action<NodeBT> action)
+        {
+            if (node == null) return;
+            action(node);
+            if (node is CompositeNode composite)
+            {
+                foreach (var child in composite.GetChildren())
+                    Recursive(child, action);
+            }
+            else if (node is DecoratorNode decorator)
+            {
+                Recursive(decorator.Child, action);
+            }
         }
 
         private void Update()
@@ -41,11 +59,15 @@ namespace BehaviorTree
 
             if (_needsReset)
             {
-                Root.Reset();
-                CurrentState = BHState.Running;
-                LastEvaluatedState = BHState.Running;
-                _needsReset = false;
-                runnerObserver.ResetTree(Root); // Clear history when tree resets
+                float saveLastTimeSinceLastTick = _timeSinceLastTick;
+                ResetTree();
+                _timeSinceLastTick = saveLastTimeSinceLastTick;
+            }
+
+            if(warmUp)
+            {
+                EnterTree();
+                warmUp = false;
             }
 
             if (_tickInterval <= 0f)
@@ -65,7 +87,6 @@ namespace BehaviorTree
         private void TickTree()
         {
             CurrentState = Root.Tick(ref runnerObserver);
-
             if (CurrentState != BHState.Running)
             {
                 _needsReset = true;
@@ -79,11 +100,9 @@ namespace BehaviorTree
 
             if (_needsReset)
             {
-                Root.Reset();
-                CurrentState = BHState.Running;
-                LastEvaluatedState = BHState.Running;
-                _needsReset = false;
-                runnerObserver.ResetTree(Root);
+                float saveLastTimeSinceLastTick = _timeSinceLastTick;
+                ResetTree();
+                _timeSinceLastTick = saveLastTimeSinceLastTick;
             }
 
             CurrentState = Root.Tick(ref runnerObserver);
@@ -99,6 +118,19 @@ namespace BehaviorTree
         {
             if (!IsInitialized || Root == null)
                 return;
+
+            if (_needsReset)
+            {
+                float saveLastTimeSinceLastTick = _timeSinceLastTick;
+                ResetTree();
+                _timeSinceLastTick = saveLastTimeSinceLastTick;
+            }
+
+            if(warmUp)
+            {
+                EnterTree();
+                warmUp = false;
+            }
 
             LastEvaluatedState = Root.Evaluate(ref runnerObserver);
             CurrentState = LastEvaluatedState;
@@ -118,10 +150,9 @@ namespace BehaviorTree
 
             if (_needsReset)
             {
-                Root.Reset();
-                CurrentState = BHState.Running;
-                LastEvaluatedState = BHState.Running;
-                _needsReset = false;
+                float saveLastTimeSinceLastTick = _timeSinceLastTick;
+                ResetTree();
+                _timeSinceLastTick = saveLastTimeSinceLastTick;
                 return;
             }
 
@@ -130,11 +161,16 @@ namespace BehaviorTree
 
             var result = Root.Execute();
             CurrentState = result;
+        }
 
-            if (result != BHState.Running)
-            {
-                _needsReset = true;
-            }
+        private void EnterTree()
+        {
+            Recursive(Root, n => n.OnEnterTree());
+        }
+
+        private void ExitTree()
+        {
+            Recursive(Root, n => n.OnExitTree());
         }
 
         public void ResetTree()
@@ -145,6 +181,32 @@ namespace BehaviorTree
             _timeSinceLastTick = 0f;
             _needsReset = false;
             runnerObserver.ResetTree(Root);
+            
+            ExitTree();
+            warmUp = true;
+        }
+
+        /// <summary>
+        /// Abort only nodes that are currently running in a subtree.
+        /// </summary>
+        private void AbortRunningSubtree(NodeBT node)
+        {
+            if (node == null) return;
+
+            // Only abort nodes that are actually running
+            if (!node.IsRunning) return;
+
+            node.Abort();
+
+            if (node is CompositeNode composite)
+            {
+                foreach (var child in composite.GetChildren())
+                    AbortRunningSubtree(child);
+            }
+            else if (node is DecoratorNode decorator)
+            {
+                AbortRunningSubtree(decorator.Child);
+            }
         }
 
         private void OnDestroy()
@@ -257,12 +319,13 @@ namespace BehaviorTree
 
         public string GetPathString()
         {
-            if (Path.Count == 0) return "Empty";
+            if (Path.Count == 0) return "/";
             var sb = new System.Text.StringBuilder();
-            for (int i = 0; i < Path.Count && i <= LastDepth; i++)
+            sb.Append("/");
+            for (int i = 0; i < Path.Count; i++)
             {
                 sb.Append(Path[i]);
-                if (i < LastDepth) sb.Append("->");
+                if (i < Path.Count - 1) sb.Append("->");
             }
             return sb.ToString();
         }

@@ -52,6 +52,8 @@ namespace BehaviorTree
         }
 
         protected virtual void OnInitialize() { }
+        public virtual void OnEnterTree() { }
+        public virtual void OnExitTree() { }
         protected virtual void OnEnter() { }
         protected virtual void OnExit() { }
 
@@ -143,8 +145,8 @@ namespace BehaviorTree
         // Phase 2: Execute
         public BHState Execute()
         {
-            if (EvaluatedState != BHState.Running)
-                return EvaluatedState;
+            if (CurrentState != BHState.Running)
+                return CurrentState;
 
             var result = OnExecute();
             if (result != BHState.Running)

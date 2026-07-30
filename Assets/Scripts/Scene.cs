@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using BehaviorTree;
+using BehaviorTree.Debug;
 using UnityEngine;
 using UnityEngine.Profiling;
 
@@ -20,7 +21,7 @@ public class Scene : MonoBehaviour
     private long lastMemoryRecorded;
     System.Diagnostics.Stopwatch stopwatch;
 
-    void Start()
+    IEnumerator Start()
     {
         stopwatch = new System.Diagnostics.Stopwatch();
         stopwatch.Start();
@@ -29,14 +30,35 @@ public class Scene : MonoBehaviour
         Debug.Log($"Main thread ID: {mainThread.ManagedThreadId}");
         lastMemoryRecorded = Profiler.GetTotalAllocatedMemoryLong();
 
-        GameObject npc = new GameObject("NPC");
-        var builder = BuildSurvivalBehaviorTree(npc, new Blackboard());
-        var runner = npc.AddComponent<BehaviorTreeRunner>();
-        runner.Initialize(builder.root, builder.blackboard);
-         
+        var scheduler = this.gameObject.AddComponent<BehaviorTree.Performance.BTScheduler>();
+        scheduler.SetPlayerTransform(this.gameObject.transform);
+        
+        BTLogger bTLogger = this.gameObject.AddComponent<BTLogger>();
+        BTStats bTStats = this.gameObject.AddComponent<BTStats>();
+
+        int count = 1000;
+        for(int i = 0; i < count; i++)
+        {
+            GameObject npc = new GameObject($"NPC_{i}");
+            npc.transform.position = new Vector3(UnityEngine.Random.Range(-100f, 100f), UnityEngine.Random.Range(-100f, 100f), 0);
+            var bb = new Blackboard();
+            var builder = BuildSurvivalBehaviorTree(npc, bb);
+            var runner = npc.AddComponent<BehaviorTreeRunner>();
+            runner.Initialize(builder.root, builder.blackboard);
+
+            npc.AddComponent<VisionSensor>();
+            npc.AddComponent<BTGizmos>();
+
+            scheduler.Register(runner);
+        }
+        
+       
+
        Record();
        Log($"Scene.Start end - Time elapsed: {stopwatch.ElapsedMilliseconds} ms.");
        stopwatch.Stop();
+
+       yield return Task.CompletedTask;
     }
 
     class Test
@@ -128,21 +150,68 @@ public class Scene : MonoBehaviour
         return new BehaviorTreeBuilder(bb)
         .Root()
             .Sequence()
-                .Action(new WanderAction(GO.transform))
-                .Wait(1f)
+                .Parallel(ParallelPolicy.RequireAll)
                     .Action(new WanderAction(GO.transform))
-                .End()
-                .Wait(2f)
+                    .Action(new RotateToAction())
                 .End()
             .End()
-            
         .BuildWithBlackboard();
+    }
+
+    public class MoveToThreatTargetAction : ActionNode
+    {
+        public float Speed { get; set; } = 3f;
+
+        public float ArrivalThreshold { get; set; } = 0.5f;
+
+        private Rigidbody2D _rb;
+        private Vector3 _targetPosition;
+
+        protected override BHState OnUpdate(ref RunnerObserver observer)
+        {
+            return MoveTowardsTarget();
+        }
+
+        protected override BHState OnExecute()
+        {
+            return MoveTowardsTarget();
+        }
+
+        private BHState MoveTowardsTarget()
+        {
+            var self = Blackboard.Get(BBKeys.Self);
+            if (self == null)
+                return BHState.Failure;
+
+            var target = Blackboard.TryGet<Transform>(BBKeys.ThreatTarget, out var threatTarget) ? threatTarget : null;
+            if (target == null)
+                return BHState.Failure;
+
+            _targetPosition = target.position;
+            _rb = self.GetComponent<Rigidbody2D>();
+            if (_rb == null)
+                return BHState.Failure;
+
+            Vector2 direction = (_targetPosition - self.transform.position).normalized;
+            _rb.linearVelocity = direction * Speed;
+
+            float distanceToTarget = Vector2.Distance(self.transform.position, _targetPosition);
+            if (distanceToTarget <= ArrivalThreshold)
+            {
+                _rb.linearVelocity = Vector2.zero; // Stop moving
+                return BHState.Success;
+            }
+
+            return BHState.Running;
+        }
+
     }
 
     public class LookAroundAction : ActionNode
     {
         private readonly Transform _creature;
-        private float _lookDuration = 2f;
+        private bool isFacingRight = false; // false is left, true is right
+        private float _lookDuration = 8f;
         private float _elapsed;
         private float _startAngle;
 
@@ -150,10 +219,17 @@ public class Scene : MonoBehaviour
 
         protected override void OnEnter()
         {
+            isFacingRight = UnityEngine.Random.value > 0.5f; // Randomly choose initial facing direction
             _elapsed = 0f;
             _startAngle = Mathf.Atan2(_creature.transform.right.y, _creature.transform.right.x) * Mathf.Rad2Deg;
             Debug.Log($"[{_creature.name}] Looking around...");
-            Blackboard.Remove(BBKeys.HeardNoise);
+            if(Blackboard == null)
+            {
+                Debug.LogError($"[{_creature.name}] Blackboard is null in LookAroundAction. WTF ?");
+            }
+            Blackboard.TryRemove(BBKeys.HeardNoise);
+            string direction = isFacingRight ? "right" : "left";
+            Debug.Log($"[{_creature.name}] Starting to look around, facing {direction}.");
         }
 
         protected override void OnExit()
@@ -171,13 +247,27 @@ public class Scene : MonoBehaviour
         {
             // Quay đầu nhìn xung quanh (quay 360 độ trong thời gian _lookDuration)
             float t = _elapsed / _lookDuration;
+            if(isFacingRight)
+            {
+                t = 1f - t; // Nếu đang nhìn sang phải, đảo ngược t để quay ngược chiều kim đồng hồ
+            }
+            else
+            {
+                // Nếu đang nhìn sang trái, giữ nguyên t để quay theo chiều kim đồng hồ
+            }
             float angle = _startAngle + t * 360f;
             Vector2 dir = new Vector2(Mathf.Cos(angle * Mathf.Deg2Rad), Mathf.Sin(angle * Mathf.Deg2Rad));
             _creature.transform.right = dir;
 
-            return EvaluatedState;
+            return _elapsed >= _lookDuration ? BHState.Success : BHState.Running;
         }
 
-        protected override BHState OnUpdate(ref RunnerObserver observer) { OnEvaluate(ref observer); return OnExecute(); }
+        protected override BHState OnUpdate(ref RunnerObserver observer) 
+        {
+            OnEvaluate(ref observer); 
+            return OnExecute(); 
+        }
     }
+
+    
 }

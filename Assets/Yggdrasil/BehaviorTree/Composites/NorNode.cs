@@ -56,7 +56,11 @@ namespace BehaviorTree
                 var state = Children[CurrentChildIndex].Evaluate(ref observer);
                 observer.Ascend();
                 if (state == BHState.Running) return BHState.Running;
-                if (state == BHState.Success) anySucceeded = true;
+                if (state == BHState.Success)
+                {
+                    anySucceeded = true;
+                    if (BreakOnFirstSuccess) { CurrentChildIndex = 0; return BHState.Failure; }
+                }
                 CurrentChildIndex++;
             }
             CurrentChildIndex = 0;

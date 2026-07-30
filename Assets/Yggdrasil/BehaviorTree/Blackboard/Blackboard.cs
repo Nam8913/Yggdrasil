@@ -57,6 +57,12 @@ namespace BehaviorTree
             List<Delegate> snapshot;
             lock (_lock)
             {
+                T oldValue = TryGet(key, out oldValue) ? oldValue : default;
+                if(value != null && value.Equals(oldValue))
+                {
+                    // Value hasn't changed, no need to notify
+                    return;
+                }
                 _data[key.Name] = value;
                 if (!_observers.TryGetValue(key.Name, out var list))
                     snapshot = null;
@@ -75,11 +81,33 @@ namespace BehaviorTree
             }
         }
 
+        public void TrySet<T>(BBKey<T> key, T value)
+        {
+            lock (_lock)
+            {
+                if (_data.ContainsKey(key.Name))
+                {
+                    Set(key, value);
+                }
+            }
+        }
+
         public void Remove<T>(BBKey<T> key)
         {
             lock (_lock)
             {
                 _data.Remove(key.Name);
+            }
+        }
+
+        public void TryRemove<T>(BBKey<T> key)
+        {
+            lock (_lock)
+            {
+                if (_data.ContainsKey(key.Name))
+                {
+                    Remove(key);
+                }
             }
         }
 

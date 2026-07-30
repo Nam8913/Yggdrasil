@@ -57,6 +57,7 @@ namespace BehaviorTree
         // Abort lan truyền xuống tất cả con, đảm bảo hủy sạch sẽ
         public override void Abort()
         {
+            CurrentChildIndex = 0;
             foreach (var child in Children)
             {
                 child?.Abort();

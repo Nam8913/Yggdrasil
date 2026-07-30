@@ -20,7 +20,7 @@ namespace BehaviorTree
 
         // Movement speed in units per second
         // Tốc độ di chuyển (đơn vị/giây)
-        public float MoveSpeed { get; set; } = 2f;
+        public float MoveSpeed { get; set; } = 1f;
 
         // Distance threshold to consider a waypoint reached
         // Ngưỡng khoảng cách để coi một điểm đã đến
@@ -69,8 +69,9 @@ namespace BehaviorTree
         protected override BHState OnExecute()
         {
             if (_path == null || _path.Count == 0 || _transform == null)
+            {
                 return BHState.Failure;
-
+            }
             if (_pathIndex >= _path.Count)
             {
                 _path = null;
@@ -78,6 +79,7 @@ namespace BehaviorTree
             }
 
             Vector2 currentTarget = _path[_pathIndex];
+            Blackboard.Set(BBKeys.MoveTarget, currentTarget);
             _transform.position = Vector2.MoveTowards(
                 _transform.position,
                 currentTarget,
@@ -89,7 +91,6 @@ namespace BehaviorTree
                 _pathIndex++;
                 if (_pathIndex >= _path.Count)
                 {
-                    _path = null;
                     return BHState.Success;
                 }
             }

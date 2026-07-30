@@ -29,6 +29,10 @@ namespace BehaviorTree
 
         protected override BHState OnExecute()
         {
+            if(CurrentState != BHState.Running)
+            {
+                return CurrentState;
+            }
             return Child.Execute();
         }
     }

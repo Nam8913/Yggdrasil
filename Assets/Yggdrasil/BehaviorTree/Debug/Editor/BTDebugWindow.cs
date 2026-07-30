@@ -20,6 +20,19 @@ namespace BehaviorTree.Debug.Editor
             GetWindow<BTDebugWindow>("BT Debugger");
         }
 
+        private void OnSelectionChange()
+        {
+            if (Selection.activeGameObject != null)
+            {
+                var runner = Selection.activeGameObject.GetComponent<BehaviorTreeRunner>();
+                if (runner != null)
+                {
+                    _selectedRunner = runner;
+                    Repaint();
+                }
+            }
+        }
+
         private void OnGUI()
         {
             EditorGUILayout.BeginHorizontal();
